@@ -1,4 +1,4 @@
-# x207 solver (M4, F3)
+# x207 solver (M4, F3, F5)
 
 Clearing solver for the x207 mutual credit layer on NEAR. It reads the obligation graph of a closed epoch, computes the optimal **cycle-only** clearing (MTCS, ADR-03) with min-cost flow, and prints a proposal in the exact shape of `submit_clearing(epoch, edges)`.
 
@@ -50,4 +50,4 @@ The result is deterministic: ties between equally good routes are broken with a 
 Not applicable until SV-006. Spike Ronde 4 measured about 0.34 Tgas per edge in `submit_clearing`, so a 300-edge proposal is about 100 Tgas.
 
 ## IDs
-Module M4, feature F3. Backlog: SV-001 to SV-009. Spec: Spec API Backend 3.3, Spec Antarmuka Kontrak 3.6 and 4.3.
+Module M4, features F3 and F5 (F5 is roadmap). Backlog: SV-001 to SV-009. Spec: Spec API Backend 3.3, Spec Antarmuka Kontrak 3.6 and 4.3.
