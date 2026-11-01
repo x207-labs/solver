@@ -19,7 +19,11 @@ export interface NearRpcOptions {
 /** Any failure to talk to the NEAR RPC. The solver stops without submitting (K-45). */
 export class RpcError extends Error {}
 
-/** `ClearingChain` over plain JSON-RPC: view calls and one signed FunctionCall transaction. */
+/**
+ * `ClearingChain` over plain JSON-RPC: view calls and one signed FunctionCall transaction. Views and
+ * the nonce read the latest block (`optimistic`), not the last final one: a proposal that landed a few
+ * seconds ago must be visible, or the solver simulates against stale state in the very race it is for.
+ */
 export class NearRpcChain implements ClearingChain {
   constructor(private readonly options: NearRpcOptions) {}
 
@@ -45,7 +49,7 @@ export class NearRpcChain implements ClearingChain {
   private async view<T>(method: string, args: unknown): Promise<T> {
     const result = await this.rpc("query", {
       request_type: "call_function",
-      finality: "final",
+      finality: "optimistic",
       account_id: this.options.contractId,
       method_name: method,
       args_base64: Buffer.from(JSON.stringify(args)).toString("base64"),
@@ -70,7 +74,7 @@ export class NearRpcChain implements ClearingChain {
     const { contractId, signerId, key, gasTgas } = this.options;
     const access = await this.rpc("query", {
       request_type: "view_access_key",
-      finality: "final",
+      finality: "optimistic",
       account_id: signerId,
       public_key: key.publicKey,
     });
