@@ -273,6 +273,14 @@ describe("SV-003 MTCS clearing", () => {
     expect(clearedOf(three.proposal, e42.translator, e42.summarizer)).toBe("30000000");
   });
 
+  it("K-44 skips a cycle that does not fit and keeps filling", () => {
+    // C2 needs 3 more edges, C3 needs 2: 3 + 2 = 5 fits, 3 + 3 = 6 does not.
+    const five = solveClearing(FX_E42, { maxEdges: 5 });
+    expect(five.proposal.edges).toHaveLength(5);
+    expect(five.clearedTotal).toBe(100000000n);
+    expect(checkProposal(FX_E42, five.proposal, 5)).toEqual({ ok: true });
+  });
+
   it("TC-SV-003-18 does not prune under the limit", () => {
     for (const maxEdges of [7, 300]) {
       const result = solveClearing(FX_E42, { maxEdges });
