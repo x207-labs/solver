@@ -2,11 +2,12 @@
 import { existsSync } from "node:fs";
 import { parseCliArgs, readConfig, UsageError } from "./config.js";
 import { loadObligationGraph, SnapshotError } from "./graph/index.js";
+import { ProposalCheckError, solveClearing } from "./mincostflow/index.js";
 
 async function main(argv: string[]): Promise<number> {
   const { epoch } = parseCliArgs(argv);
   if (existsSync(".env")) process.loadEnvFile(".env");
-  const { readApiUrl, circle } = readConfig(process.env);
+  const { readApiUrl, circle, maxEdges } = readConfig(process.env);
 
   console.error(`x207-solver: ${circle} epoch ${epoch}`);
   const graph = await loadObligationGraph({ readApiUrl, circle, epoch });
@@ -15,13 +16,29 @@ async function main(argv: string[]): Promise<number> {
     return 0;
   }
   console.error(`x207-solver: ${graph.edges.length} edge, total ${graph.totalObligation}`);
+
+  const result = solveClearing(graph, { maxEdges });
+  if (result.status === "nothing_to_clear") {
+    console.error("x207-solver: tidak ada yang dikliring, tidak ada yang dikirim");
+    return 0;
+  }
+  console.error(
+    `x207-solver: proposal ${result.proposal.edges.length} edge, cleared_total ${result.clearedTotal}, ` +
+      `dipangkas ${result.pruned}`,
+  );
+  console.log(JSON.stringify(result.proposal));
+  console.error("x207-solver: submit belum tersedia (SV-006), proposal hanya dicetak");
   return 0;
 }
 
 try {
   process.exitCode = await main(process.argv.slice(2));
 } catch (error) {
-  if (!(error instanceof UsageError || error instanceof SnapshotError)) throw error;
+  const known =
+    error instanceof UsageError ||
+    error instanceof SnapshotError ||
+    error instanceof ProposalCheckError;
+  if (!known) throw error;
   console.error(`x207-solver: ${error.message}`);
   process.exitCode = 1;
 }

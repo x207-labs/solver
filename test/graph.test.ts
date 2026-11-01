@@ -192,6 +192,39 @@ describe("SV-002 through the CLI", () => {
     expect(result.stderr).toContain("X207_READ_API_URL");
   });
 
+  it("SV-003 prints the proposal and respects MAX_EDGES_PER_TX", async () => {
+    api = await startReadApi(200, FX_E42);
+    const full = await runCli(["--epoch", "42"], env(api.url));
+    expect(full.code).toBe(0);
+    expect(JSON.parse(full.stdout).edges).toHaveLength(7);
+    expect(full.stderr).toContain("cleared_total 145000000");
+
+    const capped = await runCli(["--epoch", "42"], { ...env(api.url), MAX_EDGES_PER_TX: "3" });
+    expect(JSON.parse(capped.stdout).edges).toHaveLength(3);
+    expect(capped.stderr).toContain("cleared_total 90000000");
+  });
+
+  it("SV-003 rejects an invalid MAX_EDGES_PER_TX", async () => {
+    const result = await runCli(["--epoch", "42"], {
+      X207_READ_API_URL: "http://127.0.0.1:1",
+      MAX_EDGES_PER_TX: "0",
+    });
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("MAX_EDGES_PER_TX");
+  });
+
+  it("TC-SV-003-09 logs nothing to clear on a DAG and sends nothing", async () => {
+    const edges = [
+      { debtor: "a", creditor: "b", amount: "5", seq: 1, cleared: null, remaining: null },
+      { debtor: "b", creditor: "c", amount: "5", seq: 2, cleared: null, remaining: null },
+    ];
+    api = await startReadApi(200, snapshot(edges));
+    const result = await runCli(["--epoch", "42"], env(api.url));
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain("tidak ada yang dikliring");
+    expect(result.stdout).toBe("");
+  });
+
   it("TC-SV-002-03 exits 1 on a mismatching header", async () => {
     api = await startReadApi(200, snapshot(FX_E42_EDGES, { edgeCount: 8 }));
     const result = await runCli(["--epoch", "42"], env(api.url));
