@@ -2,7 +2,7 @@
 
 Clearing solver for the x207 mutual credit layer on NEAR. It reads the obligation graph of a closed epoch, computes the optimal **cycle-only** clearing (MTCS, ADR-03) with min-cost flow, and prints a proposal in the exact shape of `submit_clearing(epoch, edges)`.
 
-Part of [x207](https://github.com/x207-protocol/x207). Anyone can run a solver: the contract verifies every proposal on-chain, so a solver needs no trust (see the Trust section once SV-008 lands).
+Part of [x207](https://github.com/x207-labs/x207). Anyone can run a solver: the contract verifies every proposal on-chain, so a solver needs no trust (see the Trust section once SV-008 lands).
 
 > **Status:** SV-001 to SV-005 are done. **Submitting to the contract (SV-006) is not implemented yet.** The CLI computes and prints the proposal; it does not call `simulate_clearing` or `submit_clearing`. This README is partial until SV-006 lands, so the end-to-end steps against a sandbox cannot be followed yet.
 
