@@ -1,4 +1,27 @@
-import type { ObligationGraph } from "../graph/index.js";
+import { createHash } from "node:crypto";
+import { compareText, type ObligationEdge, type ObligationGraph } from "../graph/index.js";
+
+const sha256 = (text: string) => createHash("sha256").update(text, "utf8").digest();
+
+/** Tie-break seed: first 8 bytes of sha256("<circleId>:<epoch>") as big-endian u64 (K-43). */
+export function seedFromEpoch(circle: string, epoch: number): bigint {
+  return sha256(`${circle}:${epoch}`).readBigUInt64BE(0);
+}
+
+/**
+ * Edge scan order for path search. Equal-cost routes are resolved by whichever
+ * edge is scanned first, so this order alone decides among optimal solutions.
+ */
+function seededOrder(graph: ObligationGraph): ObligationEdge[] {
+  const seed = seedFromEpoch(graph.circle, graph.epoch);
+  const rank = new Map(
+    graph.edges.map((edge) => [
+      edge,
+      sha256(JSON.stringify([seed.toString(), edge.debtor, edge.creditor])).toString("hex"),
+    ]),
+  );
+  return [...graph.edges].sort((a, b) => compareText(rank.get(a)!, rank.get(b)!));
+}
 
 /** Net position b_i per member: inflow minus outflow. */
 export function netPositions(graph: ObligationGraph): Map<string, bigint> {
@@ -40,7 +63,8 @@ export function minCostFlow(graph: ObligationGraph): bigint[] {
     weight.push(cost * costUnit + 1, -cost * costUnit + 1);
   };
 
-  for (const edge of graph.edges) {
+  const order = seededOrder(graph);
+  for (const edge of order) {
     addArc(index.get(edge.debtor)!, index.get(edge.creditor)!, edge.amount, 1);
   }
   let demand = 0n;
@@ -95,5 +119,6 @@ export function minCostFlow(graph: ObligationGraph): bigint[] {
     demand -= bottleneck;
   }
 
-  return graph.edges.map((_, i) => capacity[2 * i + 1]!);
+  const arcOf = new Map(order.map((edge, i) => [edge, 2 * i]));
+  return graph.edges.map((edge) => capacity[arcOf.get(edge)! + 1]!);
 }
