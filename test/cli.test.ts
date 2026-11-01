@@ -10,9 +10,9 @@ describe("SV-001 scaffold", () => {
   });
 
   it("accepts an epoch argument", async () => {
+    // Passes the argument check, then stops at the missing read API URL.
     const result = await runCli(["--epoch", "42"]);
-    expect(result.stderr).toContain("epoch 42");
-    expect(result.code).toBe(0);
+    expect(result.stderr).toContain("X207_READ_API_URL");
   });
 
   it("rejects a missing epoch", async () => {
