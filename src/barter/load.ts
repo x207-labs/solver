@@ -70,3 +70,16 @@ export async function loadOpenListings(options: LoadBookOptions): Promise<OpenLi
       }),
     );
 }
+
+export interface ActiveBundle {
+  bundleId: number;
+  termsHash: string;
+  epoch: number;
+  legs: { payer: string; payee: string; maxAmount: string }[];
+}
+
+/** Bundles committed on chain for `epoch` (BE-036, `GET …/bundles?status=active`). */
+export async function loadActiveBundles(options: LoadBookOptions & { epoch: number }): Promise<ActiveBundle[]> {
+  const items = await pages<ActiveBundle>(options, "/bundles?status=active");
+  return items.filter((b) => b.epoch === options.epoch);
+}

@@ -1,9 +1,20 @@
 #!/usr/bin/env node
 import { existsSync } from "node:fs";
 import { parseCliArgs, readConfig, readSubmitConfig, UsageError } from "./config.js";
+import { bundleLegReport, loadActiveBundles } from "./barter/index.js";
 import { loadObligationGraph, SnapshotError } from "./graph/index.js";
 import { ProposalCheckError, solveClearing } from "./mincostflow/index.js";
 import { NearRpcChain, parseSecretKey, submitProposal } from "./submit/index.js";
+
+/** SV-012: says how many legs of the bundles of this epoch the proposal clears completely. Information only; a read error is not fatal. */
+async function reportBundleLegs(result: Parameters<typeof bundleLegReport>[0], readApiUrl: string, circle: string, epoch: number): Promise<void> {
+  try {
+    const bundles = await loadActiveBundles({ readApiUrl, circle, epoch, timeoutMs: 5_000 });
+    for (const b of bundleLegReport(result, bundles)) console.error(`x207-solver: bundle ${b.bundleId}: ${b.cleared} dari ${b.legs} leg dikliring penuh`);
+  } catch (error) {
+    console.error(`x207-solver: bundle tidak terbaca, laporan leg dilewati: ${(error as Error).message}`);
+  }
+}
 
 async function main(argv: string[]): Promise<number> {
   const { epoch, noSubmit } = parseCliArgs(argv);
@@ -28,6 +39,7 @@ async function main(argv: string[]): Promise<number> {
     `x207-solver: proposal ${result.proposal.edges.length} edge, cleared_total ${result.clearedTotal}, ` +
       `dipangkas ${result.pruned}`,
   );
+  await reportBundleLegs(result, readApiUrl, circle, epoch);
   console.log(JSON.stringify(result.proposal));
   if (submit === null) {
     console.error("x207-solver: tidak ada konfigurasi submit atau --no-submit, proposal hanya dicetak");

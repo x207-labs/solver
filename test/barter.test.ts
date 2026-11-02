@@ -244,3 +244,29 @@ describe("loaders of the intent and listing books", () => {
     await expect(loadOpenIntents({ readApiUrl: "http://api", circle: CIRCLE, fetch: fetchFn })).rejects.toThrow(/500/);
   });
 });
+
+describe("SV-012 report of bundle legs in the CLI", () => {
+  it("counts the legs of a bundle that the clearing removes completely", async () => {
+    const { bundleLegReport } = await import("../src/barter/index.js");
+    const legs = [
+      { payer: "a.near", payee: "b.near", amount: 1_000_000n },
+      { payer: "b.near", payee: "c.near", amount: 1_000_000n },
+      { payer: "c.near", payee: "a.near", amount: 400_000n },
+    ];
+    const result = solveClearing(withBundleLegs(buildGraph(CIRCLE, 1, []), legs));
+    const report = bundleLegReport(result, [{ bundleId: 4, legs: legs.map((l) => ({ payer: l.payer, payee: l.payee, maxAmount: String(l.amount) })) }]);
+    expect(report).toEqual([{ bundleId: 4, legs: 3, cleared: 1 }]);
+    const balanced = legs.map((l) => ({ ...l, amount: 1_000_000n }));
+    const full = solveClearing(withBundleLegs(buildGraph(CIRCLE, 1, []), balanced));
+    expect(bundleLegReport(full, [{ bundleId: 5, legs: balanced.map((l) => ({ payer: l.payer, payee: l.payee, maxAmount: String(l.amount) })) }])[0]!.cleared).toBe(3);
+  });
+
+  it("loadActiveBundles keeps the bundles of the epoch", async () => {
+    const { loadActiveBundles } = await import("../src/barter/index.js");
+    const fetchFn = (async () => json({ items: [{ bundleId: 1, termsHash: "h", epoch: 4, legs: [] }, { bundleId: 2, termsHash: "i", epoch: 5, legs: [] }], nextCursor: null })) as unknown as typeof fetch;
+    const got = await loadActiveBundles({ readApiUrl: "http://api", circle: CIRCLE, epoch: 5, fetch: fetchFn });
+    expect(got.map((b) => b.bundleId)).toEqual([2]);
+  });
+});
+
+const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
