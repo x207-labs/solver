@@ -1,10 +1,13 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { UsageError } from "../config.js";
+import { termsHash } from "@x207/core";
+import { readSubmitConfig, UsageError } from "../config.js";
+import { NearRpcChain, parseSecretKey, type SubmitOutcome } from "../submit/index.js";
 import { cycleTerms, findIntentCycles } from "./cycles.js";
 import { loadOpenIntents, loadOpenListings } from "./load.js";
 import { matchListingRings, matchListings } from "./match.js";
 import { OfferLedger, planSeekerOffers, type SeekerAgent } from "./seeker.js";
+import { commitBundleArgs, postBundleProposal, readyProposals, sendReferrals } from "./send.js";
 
 export interface BarterCliIo {
   env: NodeJS.ProcessEnv;
@@ -12,10 +15,13 @@ export interface BarterCliIo {
   now?: () => number;
   out: (line: string) => void;
   err: (line: string) => void;
+  /** Sends `commit_bundle` to the contract; the default signs with `SOLVER_*` through `NearRpcChain`. */
+  commit?: (args: unknown) => Promise<SubmitOutcome>;
 }
 
-const USAGE = `usage: x207-barter rings --epoch <n>
-       x207-barter seek --epoch <n> --agents <file.json> --seeker <account> [--share-bps <n>] [--max-offers <n>] [--period <seconds>] [--ledger <file.json>] [--record]`;
+const USAGE = `usage: x207-barter rings --epoch <n> [--send]
+       x207-barter commit --epoch <n>
+       x207-barter seek --epoch <n> --agents <file.json> --seeker <account> [--share-bps <n>] [--max-offers <n>] [--period <seconds>] [--ledger <file.json>] [--record] [--send] [--ttl <seconds>]`;
 
 /**
  * `x207-barter` (SV-011, SV-015). `rings` reads the open intents and listings from the read API and prints the bundle
@@ -25,12 +31,13 @@ const USAGE = `usage: x207-barter rings --epoch <n>
  */
 export async function runBarterCli(argv: string[], io: BarterCliIo): Promise<number> {
   const [command, ...rest] = argv;
-  if (command !== "rings" && command !== "seek") throw new UsageError(USAGE);
+  if (command !== "rings" && command !== "seek" && command !== "commit") throw new UsageError(USAGE);
   const { values } = parseArgs({
     args: rest,
     options: {
       epoch: { type: "string" }, agents: { type: "string" }, seeker: { type: "string" }, "share-bps": { type: "string" },
       "max-offers": { type: "string" }, period: { type: "string" }, ledger: { type: "string" }, record: { type: "boolean" },
+      send: { type: "boolean" }, ttl: { type: "string" },
     },
   });
   const int = (name: string, raw: string | undefined, fallback?: number): number => {
@@ -57,9 +64,43 @@ export async function runBarterCli(argv: string[], io: BarterCliIo): Promise<num
     const matched = new Set(pairs.flatMap((p) => p.listings));
     const rings = matchListingRings(listings.filter((l) => !matched.has(l.hash)), options);
     const intentRings = findIntentCycles(intents).map((ring) => ({ ...cycleTerms(ring, contract, epoch), members: ring.members.map((m) => m.account) }));
-    io.out(JSON.stringify({ epoch, intentRings, listingPairs: pairs, listingRings: rings }));
+    const sent: { termsHash: string; created: boolean }[] = [];
+    if (values.send === true) {
+      const proposals = [...intentRings.map((r) => r.terms), ...pairs.map((p) => p.terms), ...rings.map((r) => r.terms)];
+      for (const terms of proposals) {
+        const hash = intentRings.find((r) => r.terms === terms)?.termsHash ?? termsHash(terms);
+        const { created } = await postBundleProposal({ readApiUrl, circle, ...(io.fetch ? { fetch: io.fetch } : {}) }, terms, hash);
+        sent.push({ termsHash: hash, created });
+      }
+    }
+    io.out(JSON.stringify({ epoch, intentRings, listingPairs: pairs, listingRings: rings, ...(values.send === true ? { sent } : {}) }));
     io.err(`x207-barter: ${intentRings.length} cincin intent, ${pairs.length} pasangan listing, ${rings.length} cincin listing`);
     return 0;
+  }
+
+  if (command === "commit") {
+    const ready = await readyProposals({ readApiUrl, circle, ...(io.fetch ? { fetch: io.fetch } : {}) }, epoch);
+    const send =
+      io.commit ??
+      (async (args: unknown) => {
+        const submit = readSubmitConfig(io.env);
+        if (submit === null) throw new UsageError("commit butuh NEAR_RPC_URL, X207_CONTRACT_ID, SOLVER_ACCOUNT_ID dan SOLVER_PRIVATE_KEY");
+        const chain = new NearRpcChain({
+          rpcUrl: submit.rpcUrl, contractId: submit.contractId, signerId: submit.signerId, key: parseSecretKey(submit.secretKey), gasTgas: submit.gasTgas,
+          ...(submit.gasKeyNonceIndex === undefined ? {} : { gasKeyNonceIndex: submit.gasKeyNonceIndex }),
+        });
+        return chain.call("commit_bundle", args);
+      });
+    let failed = 0;
+    const results: { termsHash: string; ok: boolean; txHash?: string; error?: string }[] = [];
+    for (const proposal of ready) {
+      const outcome = await send(commitBundleArgs(proposal));
+      if (!outcome.ok) failed += 1;
+      results.push({ termsHash: proposal.termsHash, ok: outcome.ok, ...(outcome.ok ? { txHash: outcome.txHash } : { error: outcome.error }) });
+    }
+    io.out(JSON.stringify({ epoch, committed: results }));
+    io.err(`x207-barter: ${ready.length} usulan lengkap, ${ready.length - failed} commit_bundle diterima`);
+    return failed === 0 ? 0 : 1;
   }
 
   const agentsFile = values.agents;
@@ -73,12 +114,23 @@ export async function runBarterCli(argv: string[], io: BarterCliIo): Promise<num
     seeker, epoch, now: nowSeconds, searcherShareBps: int("share-bps", values["share-bps"], 300),
     maxOffersPerAgent: int("max-offers", values["max-offers"], 3), periodSeconds: int("period", values.period, 86_400),
   });
+  let outcomes: Awaited<ReturnType<typeof sendReferrals>> | undefined;
+  if (values.send === true) {
+    const key = io.env.SEEKER_PRIVATE_KEY;
+    if (!key || !key.startsWith("ed25519:")) throw new UsageError("--send butuh SEEKER_PRIVATE_KEY (ed25519:<base58>, kunci voucher akun pencari)");
+    outcomes = await sendReferrals({ readApiUrl, circle, ...(io.fetch ? { fetch: io.fetch } : {}) }, offers, {
+      seeker, secretKey: key as `ed25519:${string}`, circle: contract, now: nowSeconds, ttlSeconds: int("ttl", values.ttl, 3600),
+      searcherShareBps: int("share-bps", values["share-bps"], 300),
+    });
+    for (const o of outcomes) if (o.status === "refused") ledger.refuse(o.to, o.listingHash);
+  }
   if (values.record === true) {
     if (!ledgerFile) throw new UsageError("--record butuh --ledger");
-    for (const o of offers) ledger.record(o.to, nowSeconds);
-    writeFileSync(ledgerFile, JSON.stringify(ledger.snapshot()));
+    const sentTo = new Set((outcomes ?? offers.map((o) => ({ to: o.to, listingHash: o.listingHash, status: "sent" as const }))).filter((o) => o.status === "sent").map((o) => `${o.to}\u0000${o.listingHash}`));
+    for (const o of offers) if (sentTo.has(`${o.to}\u0000${o.listingHash}`)) ledger.record(o.to, nowSeconds, o.listingHash);
   }
-  io.out(JSON.stringify({ epoch, seeker, offers }));
-  io.err(`x207-barter: ${offers.length} tawaran disiapkan${values.record ? " dan dicatat" : ""}`);
+  if (ledgerFile && (values.record === true || (outcomes ?? []).some((o) => o.status === "refused"))) writeFileSync(ledgerFile, JSON.stringify(ledger.snapshot()));
+  io.out(JSON.stringify({ epoch, seeker, offers, ...(outcomes ? { sent: outcomes } : {}) }));
+  io.err(`x207-barter: ${offers.length} tawaran disiapkan${outcomes ? `, ${outcomes.filter((o) => o.status === "sent").length} terkirim` : ""}${values.record ? ", dicatat" : ""}`);
   return 0;
 }

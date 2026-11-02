@@ -73,6 +73,11 @@ export class NearRpcChain implements ClearingChain {
   }
 
   async submit(epoch: number, edges: ClearingEdge[]): Promise<SubmitOutcome> {
+    return this.call("submit_clearing", { epoch, edges });
+  }
+
+  /** One signed FunctionCall to the circle contract (`submit_clearing`, `commit_bundle`). */
+  async call(methodName: string, args: unknown): Promise<SubmitOutcome> {
     const { contractId, signerId, key, gasTgas, gasKeyNonceIndex } = this.options;
     let nonce: bigint;
     let blockHash: string;
@@ -110,8 +115,8 @@ export class NearRpcChain implements ClearingChain {
         nonce,
         ...(gasKeyNonceIndex === undefined ? {} : { nonceIndex: gasKeyNonceIndex }),
         blockHash: base58Decode(blockHash),
-        methodName: "submit_clearing",
-        args: { epoch, edges },
+        methodName,
+        args,
         gas: BigInt(gasTgas) * 1_000_000_000_000n,
         deposit: 0n,
       },

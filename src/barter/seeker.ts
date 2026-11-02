@@ -46,20 +46,30 @@ export interface SeekerOffer {
 export class OfferLedger {
   private sent = new Map<string, number[]>();
   private refused = new Set<string>();
+  /** `agent\0listing` -> time of the last offer, so the same pair is not offered again within a period. */
+  private pairs = new Map<string, number>();
 
-  constructor(snapshot?: { sent: Record<string, number[]>; refused: string[] }) {
+  constructor(snapshot?: { sent: Record<string, number[]>; refused: string[]; pairs?: Record<string, number> }) {
     if (snapshot) {
       this.sent = new Map(Object.entries(snapshot.sent));
       this.refused = new Set(snapshot.refused);
+      this.pairs = new Map(Object.entries(snapshot.pairs ?? {}));
     }
+  }
+
+  /** The pair got an offer less than `periodSeconds` before `now`. */
+  recentlyOffered(agent: string, listingHash: string, now: number, periodSeconds: number): boolean {
+    const at = this.pairs.get(`${agent}\u0000${listingHash}`);
+    return at !== undefined && at > now - periodSeconds;
   }
 
   countInPeriod(agent: string, now: number, periodSeconds: number): number {
     return (this.sent.get(agent) ?? []).filter((t) => t > now - periodSeconds).length;
   }
 
-  record(agent: string, now: number): void {
+  record(agent: string, now: number, listingHash?: string): void {
     this.sent.set(agent, [...(this.sent.get(agent) ?? []), now]);
+    if (listingHash !== undefined) this.pairs.set(`${agent}\u0000${listingHash}`, now);
   }
 
   /** The agent refused `listingHash`; the seeker never offers that pair again. */
@@ -71,8 +81,8 @@ export class OfferLedger {
     return this.refused.has(`${agent}\u0000${listingHash}`);
   }
 
-  snapshot(): { sent: Record<string, number[]>; refused: string[] } {
-    return { sent: Object.fromEntries(this.sent), refused: [...this.refused] };
+  snapshot(): { sent: Record<string, number[]>; refused: string[]; pairs: Record<string, number> } {
+    return { sent: Object.fromEntries(this.sent), refused: [...this.refused], pairs: Object.fromEntries(this.pairs) };
   }
 }
 
@@ -93,7 +103,7 @@ export function planSeekerOffers(listings: readonly Listing[], agents: readonly 
   for (const agent of [...agents].sort((a, b) => (a.account < b.account ? -1 : 1))) {
     if (!agent.optIn || !agent.discoverable || !agent.idle) continue;
     for (const { listing, hash } of book) {
-      if (listing.account === agent.account || ledger.wasRefused(agent.account, hash)) continue;
+      if (listing.account === agent.account || ledger.wasRefused(agent.account, hash) || ledger.recentlyOffered(agent.account, hash, config.now, config.periodSeconds)) continue;
       const used = ledger.countInPeriod(agent.account, config.now, config.periodSeconds) + (planned.get(agent.account) ?? 0);
       if (used >= config.maxOffersPerAgent) break;
       const mode = listing.accept_payment && agent.canPay ? "pay" : "barter";
