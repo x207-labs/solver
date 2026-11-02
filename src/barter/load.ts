@@ -4,7 +4,10 @@ import { openListing, type OpenListing } from "./match.js";
 
 export interface LoadBookOptions {
   readApiUrl: string;
+  /** Circle id in the read API path, such as `agents-main`. */
   circle: string;
+  /** Contract account that signed listings name as `circle`; defaults to `circle`. */
+  contractId?: string;
   fetch?: typeof fetch;
   timeoutMs?: number;
   /** Largest number of pages read. */
@@ -56,7 +59,7 @@ export async function loadOpenListings(options: LoadBookOptions): Promise<OpenLi
     .filter((l) => l.status === "open")
     .map((l) =>
       openListing({
-        circle: options.circle,
+        circle: options.contractId ?? options.circle,
         account: l.account,
         offer: side(l.offer),
         want: side(l.want),

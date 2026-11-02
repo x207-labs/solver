@@ -72,3 +72,17 @@ Compare NEAR Intents: there the user signs an intent for each swap or accepts a 
 
 ## IDs
 Module M4, features F3 and F5 (F5 is roadmap). Backlog: SV-001 to SV-009. Spec: Spec API Backend 3.3, Spec Antarmuka Kontrak 3.6 and 4.3.
+
+## Barter (F5, F9): `x207-barter`
+`src/barter/` holds the barter work of the solver; `x207-barter` is its command line (same `.env`; `X207_CONTRACT_ID` is the contract account that signed listings name as `circle`).
+
+```bash
+x207-barter rings --epoch 42
+x207-barter seek --epoch 42 --agents agents.json --seeker finder.near [--share-bps 300] [--max-offers 3] [--period 86400] [--ledger ledger.json] [--record]
+```
+
+- `rings` reads the open intents and listings from the read API and prints the bundle proposals (terms and `terms_hash`): rings of intents with balanced legs, pairs of listings (with the cashback leg of a discount listing) and rings of listings without a direct partner. The output does not depend on the order of the books.
+- `seek` prepares the offers of the autonomous seeker for the agents in `agents.json` (`account`, `discoverable`, `optIn`, `idle`, `offers`, `canPay`). Only idle, discoverable, opt-in agents get an offer, at most `--max-offers` per `--period`, and a refused pair is never offered again (`OfferLedger`). `--record` stores what was prepared in the ledger file.
+- Neither command sends anything. The channel that carries a proposal or an offer to an agent, and the agent's answer, is a backend job (proposals exist only for accepted offers today; an agent inbox is BE-044).
+- After `x207-solver`, the clearing log shows per bundle how many legs the proposal clears completely.
+- CI runs at the umbrella workspace, like `backend`: `@x207/core` is not published.

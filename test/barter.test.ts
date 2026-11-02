@@ -270,3 +270,50 @@ describe("SV-012 report of bundle legs in the CLI", () => {
 });
 
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
+
+describe("x207-barter command", () => {
+  it("rings prints the proposals found in the books and sends nothing", async () => {
+    const { runBarterCli } = await import("../src/barter/index.js");
+    const fetchFn = (async (url: string) =>
+      json(url.includes("/intents")
+        ? { items: [
+            { intentHash: "h1", account: "a.near", offer: side("t"), need: side("s"), status: "open" },
+            { intentHash: "h2", account: "b.near", offer: side("s"), need: side("x"), status: "open" },
+            { intentHash: "h3", account: "c.near", offer: side("x"), need: side("t"), status: "open" }], nextCursor: null }
+        : { items: [], nextCursor: null })) as unknown as typeof fetch;
+    const out: string[] = [];
+    const code = await runBarterCli(["rings", "--epoch", "4"], { env: { X207_READ_API_URL: "http://api", X207_CIRCLE_ID: "agents-main", X207_CONTRACT_ID: CIRCLE }, fetch: fetchFn, now: () => NOW * 1000, out: (l) => out.push(l), err: () => {} });
+    expect(code).toBe(0);
+    const printed = JSON.parse(out[0]!);
+    expect(printed.intentRings).toHaveLength(1);
+    expect(printed.intentRings[0].members).toEqual(["a.near", "b.near", "c.near"]);
+    expect(printed.intentRings[0].termsHash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("seek prepares offers and --record keeps the per-period limit across runs", async () => {
+    const { runBarterCli } = await import("../src/barter/index.js");
+    const { mkdtempSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const dir = mkdtempSync(join(tmpdir(), "barter-"));
+    const agents = join(dir, "agents.json");
+    writeFileSync(agents, JSON.stringify([{ account: "budi.near", discoverable: true, optIn: true, idle: true, offers: [thing("data.set")], canPay: false }]));
+    const item = { account: "andi.near", offer: { assetType: "compute.gpu", assetClass: "A", quantity: 1, value: "100000000" }, want: { assetType: "data.set", assetClass: "A", quantity: 1, value: "100000000" }, terms: "t", detail: "d", expiresAt: new Date(2_000_000_000 * 1000).toISOString(), discountBps: 1000, acceptPayment: false, discoverable: true, nonce: "n1", status: "open" };
+    const fetchFn = (async () => json({ items: [item], nextCursor: null })) as unknown as typeof fetch;
+    const run = async () => {
+      const out: string[] = [];
+      await runBarterCli(["seek", "--epoch", "4", "--agents", agents, "--seeker", "finder.near", "--max-offers", "1", "--ledger", join(dir, "ledger.json"), "--record"], { env: { X207_READ_API_URL: "http://api", X207_CONTRACT_ID: CIRCLE }, fetch: fetchFn, now: () => NOW * 1000, out: (l) => out.push(l), err: () => {} });
+      return JSON.parse(out[0]!).offers.length as number;
+    };
+    expect(await run()).toBe(1);
+    expect(await run()).toBe(0);
+  });
+
+  it("a missing epoch or an unknown command is a usage error", async () => {
+    const { runBarterCli } = await import("../src/barter/index.js");
+    const { UsageError } = await import("../src/config.js");
+    const io = { env: { X207_READ_API_URL: "http://api" }, out: () => {}, err: () => {} };
+    await expect(runBarterCli(["rings"], io)).rejects.toBeInstanceOf(UsageError);
+    await expect(runBarterCli(["nope"], io)).rejects.toBeInstanceOf(UsageError);
+  });
+});
