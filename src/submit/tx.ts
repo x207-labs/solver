@@ -3,6 +3,9 @@ import { base58Decode, base58Encode } from "./base58.js";
 
 const ED25519_KEY_TYPE = 0;
 const FUNCTION_CALL_ACTION = 2;
+const TRANSACTION_V1_PREFIX = 1;
+const NONCE_GAS_KEY = 1;
+const NONCE_MODE_MONOTONIC = 0;
 // DER prefix of a PKCS#8 ed25519 private key; the 32-byte seed follows.
 const PKCS8_PREFIX = Buffer.from("302e020100300506032b657004220420", "hex");
 
@@ -37,6 +40,11 @@ class Writer {
   private chunks: Buffer[] = [];
   u8(value: number) {
     this.chunks.push(Buffer.from([value]));
+  }
+  u16(value: number) {
+    const b = Buffer.alloc(2);
+    b.writeUInt16LE(value);
+    this.chunks.push(b);
   }
   u32(value: number) {
     const b = Buffer.alloc(4);
@@ -75,15 +83,31 @@ export interface FunctionCallTx {
   /** Gas in gas units, deposit in yoctoNEAR. */
   gas: bigint;
   deposit: bigint;
+  /**
+   * Nonce lane of a gas key (NEP-611, ADR-11b), 0..1023. When set, the transaction is `Transaction::V1`
+   * (`0x01` prefix, `GasKeyNonce { nonce, nonce_index }`, `NonceMode::Monotonic`) and gas is paid by the key's balance.
+   */
+  nonceIndex?: number;
 }
 
 /** Borsh bytes of a transaction with one FunctionCall action (NEAR protocol). */
 export function encodeTransaction(tx: FunctionCallTx, key: SolverKey): Buffer {
   const w = new Writer();
+  const gasKey = tx.nonceIndex !== undefined;
+  if (gasKey) {
+    if (!Number.isInteger(tx.nonceIndex) || tx.nonceIndex! < 0 || tx.nonceIndex! > 1023) throw new Error("nonceIndex harus bilangan bulat 0..1023");
+    w.u8(TRANSACTION_V1_PREFIX);
+  }
   w.string(tx.signerId);
   w.u8(ED25519_KEY_TYPE);
   w.bytes(key.publicKeyBytes);
-  w.u64(tx.nonce);
+  if (gasKey) {
+    w.u8(NONCE_GAS_KEY);
+    w.u64(tx.nonce);
+    w.u16(tx.nonceIndex!);
+  } else {
+    w.u64(tx.nonce);
+  }
   w.string(tx.receiverId);
   w.bytes(tx.blockHash);
   w.u32(1);
@@ -94,6 +118,7 @@ export function encodeTransaction(tx: FunctionCallTx, key: SolverKey): Buffer {
   w.bytes(args);
   w.u64(tx.gas);
   w.u128(tx.deposit);
+  if (gasKey) w.u8(NONCE_MODE_MONOTONIC);
   return w.finish();
 }
 

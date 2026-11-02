@@ -12,6 +12,8 @@ export interface NearRpcOptions {
   key: SolverKey;
   /** Gas attached to `submit_clearing`, in Tgas. */
   gasTgas: number;
+  /** Nonce lane of a gas key (NEP-611); `undefined` signs with a plain access key. */
+  gasKeyNonceIndex?: number;
   fetch?: typeof fetch;
   timeoutMs?: number;
 }
@@ -71,22 +73,43 @@ export class NearRpcChain implements ClearingChain {
   }
 
   async submit(epoch: number, edges: ClearingEdge[]): Promise<SubmitOutcome> {
-    const { contractId, signerId, key, gasTgas } = this.options;
-    const access = await this.rpc("query", {
-      request_type: "view_access_key",
-      finality: "optimistic",
-      account_id: signerId,
-      public_key: key.publicKey,
-    });
-    if (typeof access?.nonce !== "number" && typeof access?.nonce !== "string") {
-      throw new RpcError(`kunci ${key.publicKey} tidak terdaftar di ${signerId}`);
+    const { contractId, signerId, key, gasTgas, gasKeyNonceIndex } = this.options;
+    let nonce: bigint;
+    let blockHash: string;
+    if (gasKeyNonceIndex === undefined) {
+      const access = await this.rpc("query", {
+        request_type: "view_access_key",
+        finality: "optimistic",
+        account_id: signerId,
+        public_key: key.publicKey,
+      });
+      if (typeof access?.nonce !== "number" && typeof access?.nonce !== "string") {
+        throw new RpcError(`kunci ${key.publicKey} tidak terdaftar di ${signerId}`);
+      }
+      nonce = BigInt(access.nonce) + 1n;
+      blockHash = access.block_hash;
+    } else {
+      // NEP-611: every lane of the gas key has its own nonce.
+      const lanes = await this.rpc("query", {
+        request_type: "view_gas_key_nonces",
+        finality: "optimistic",
+        account_id: signerId,
+        public_key: key.publicKey,
+      });
+      const lane = lanes?.nonces?.[gasKeyNonceIndex];
+      if (typeof lane !== "number" && typeof lane !== "string") {
+        throw new RpcError(`gas key ${key.publicKey} di ${signerId} tidak punya jalur nonce ${gasKeyNonceIndex}`);
+      }
+      nonce = BigInt(lane) + 1n;
+      blockHash = lanes.block_hash;
     }
     const signed = signTransaction(
       {
         signerId,
         receiverId: contractId,
-        nonce: BigInt(access.nonce) + 1n,
-        blockHash: base58Decode(access.block_hash),
+        nonce,
+        ...(gasKeyNonceIndex === undefined ? {} : { nonceIndex: gasKeyNonceIndex }),
+        blockHash: base58Decode(blockHash),
         methodName: "submit_clearing",
         args: { epoch, edges },
         gas: BigInt(gasTgas) * 1_000_000_000_000n,

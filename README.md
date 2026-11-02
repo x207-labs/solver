@@ -29,6 +29,7 @@ Copy `.env.example` to `.env` (the CLI loads `.env` from the working directory).
 | `X207_CONTRACT_ID` | to submit | Account of the circle contract |
 | `SOLVER_ACCOUNT_ID` | to submit | Account that signs `submit_clearing` |
 | `SOLVER_PRIVATE_KEY` | to submit | `ed25519:<base58>` secret key of that account. Keep it in `.env`; the solver never prints it |
+| `SOLVER_GAS_KEY_NONCE_INDEX` | no | Set when `SOLVER_PRIVATE_KEY` is a gas key (NEP-611, ADR-11b): the nonce lane to use, 0 to 1023. The transaction is then `Transaction::V1` and gas is paid from the key's balance, so several solver processes can submit at once on different lanes. Create and fund the key with `near account add-key ... grant-gas-key-full-access` and `fund-gas-key` |
 | `SUBMIT_GAS_TGAS` | no | Gas attached to `submit_clearing`, 1 to 300, default `300` |
 
 Set all four submit variables or none. A partial set stops the run with exit code 1 and names what is missing.

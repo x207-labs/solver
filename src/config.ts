@@ -15,6 +15,8 @@ export interface SubmitConfig {
   signerId: string;
   secretKey: string;
   gasTgas: number;
+  /** `SOLVER_GAS_KEY_NONCE_INDEX`: the key is a gas key (NEP-611) and this is the lane to use. */
+  gasKeyNonceIndex?: number;
 }
 
 export interface Config {
@@ -67,7 +69,16 @@ export function readSubmitConfig(env: NodeJS.ProcessEnv): SubmitConfig | null {
   if (!/^[1-9]\d*$/.test(rawGas) || gasTgas > 300) {
     throw new UsageError(`SUBMIT_GAS_TGAS harus bilangan bulat 1..300, diterima "${rawGas}"`);
   }
+  const rawLane = env.SOLVER_GAS_KEY_NONCE_INDEX;
+  let gasKeyNonceIndex: number | undefined;
+  if (rawLane !== undefined && rawLane !== "") {
+    gasKeyNonceIndex = Number(rawLane);
+    if (!/^\d+$/.test(rawLane) || gasKeyNonceIndex > 1023) {
+      throw new UsageError(`SOLVER_GAS_KEY_NONCE_INDEX harus bilangan bulat 0..1023, diterima "${rawLane}"`);
+    }
+  }
   return {
+    ...(gasKeyNonceIndex === undefined ? {} : { gasKeyNonceIndex }),
     rpcUrl: env.NEAR_RPC_URL!,
     contractId: env.X207_CONTRACT_ID!,
     signerId: env.SOLVER_ACCOUNT_ID!,

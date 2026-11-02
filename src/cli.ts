@@ -39,6 +39,7 @@ async function main(argv: string[]): Promise<number> {
     signerId: submit.signerId,
     key: parseSecretKey(submit.secretKey),
     gasTgas: submit.gasTgas,
+    ...(submit.gasKeyNonceIndex === undefined ? {} : { gasKeyNonceIndex: submit.gasKeyNonceIndex }),
   });
   return (await submitProposal(chain, result.proposal, (line) => console.error(line))).exitCode;
 }
