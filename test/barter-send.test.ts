@@ -32,6 +32,12 @@ describe("SV-011 proposals to the book and commit_bundle", () => {
     await expect(postBundleProposal({ readApiUrl: "http://api", circle: "c", fetch: fetchFn }, terms, "x")).rejects.toThrow(/409: epoch_not_open/);
   });
 
+  it("commitBundleArgs passes search_leg to commit_bundle when the terms name one", () => {
+    const named = { ...terms, search_leg: { payer: terms.legs[0]!.payer, payee: terms.legs[0]!.payee } };
+    const args = commitBundleArgs({ termsHash: "h", status: "ready", epoch: 4, terms: named, participants: ["a.near", "b.near"], signatures: [{ account: "a.near", signature: "ed25519:s1" }, { account: "b.near", signature: "ed25519:s2" }], missing: [] });
+    expect(args.bundle).toEqual({ epoch: 4, legs: terms.legs, search_leg: named.search_leg });
+  });
+
   it("commitBundleArgs needs a complete proposal and renames the signature field", () => {
     const ready: ProposalView = { termsHash: "h", status: "ready", epoch: 4, terms, participants: ["a.near", "b.near"], signatures: [{ account: "a.near", signature: "ed25519:s1" }, { account: "b.near", signature: "ed25519:s2" }], missing: [] };
     expect(commitBundleArgs(ready)).toEqual({ bundle: { epoch: 4, legs: terms.legs }, signatures: [{ account_id: "a.near", signature: "ed25519:s1" }, { account_id: "b.near", signature: "ed25519:s2" }] });

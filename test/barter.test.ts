@@ -169,6 +169,9 @@ describe("SV-015 and SV-016 autonomous seeker", () => {
     if (offer!.plan.kind === "bundle") {
       const legs = Object.fromEntries(offer!.plan.terms.legs.map((l) => [`${l.payer}>${l.payee}`, l.max_amount]));
       expect(legs).toEqual({ "andi.near>budi.near": "107000000", "budi.near>andi.near": "100000000", "andi.near>finder.near": "3000000" });
+      // CT-082: the seeker leg is named in the terms, and terms_hash covers it
+      expect(offer!.plan.terms.search_leg).toEqual({ payer: "andi.near", payee: "finder.near" });
+      expect(offer!.plan.terms_hash).toBe(termsHash(offer!.plan.terms));
     }
   });
 
