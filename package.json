@@ -16,6 +16,9 @@
     "node": ">=22.22.2"
   },
   "private": true,
+  "dependencies": {
+    "@x207/core": "0.0.1"
+  },
   "devDependencies": {
     "@types/node": "26.6.6",
     "typescript": "7.0.2",
