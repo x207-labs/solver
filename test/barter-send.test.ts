@@ -107,7 +107,8 @@ describe("SV-015 referrals to the agent inbox", () => {
     const agents = join(dir, "agents.json");
     writeFileSync(agents, JSON.stringify([agent, { ...agent, account: "cici.near" }]));
     const item = { account: "andi.near", offer: { assetType: "compute.gpu", assetClass: "A", quantity: 1, value: "100000000" }, want: { assetType: "data.set", assetClass: "A", quantity: 1, value: "100000000" }, terms: "t", detail: "d", expiresAt: new Date(2_000_000_000 * 1000).toISOString(), discountBps: 1000, acceptPayment: false, discoverable: true, nonce: "n1", status: "open" };
-    const fetchFn = (async (_url: string, init?: any) => {
+    const fetchFn = (async (url: string, init?: any) => {
+      if (String(url).includes("/members/")) return json({ status: "active", stake: "100000000" });
       if (init?.method !== "POST") return json({ items: [item], nextCursor: null });
       return JSON.parse(init.body).referral.to === "cici.near" ? json({ error: { code: "referral_refused" } }, 409) : json({ ok: true }, 201);
     }) as unknown as typeof fetch;
@@ -124,5 +125,38 @@ describe("SV-015 referrals to the agent inbox", () => {
     const again: string[] = [];
     await runBarterCli(argv, { ...io, env: { ...io.env, SEEKER_PRIVATE_KEY: key.secretKey }, out: (l) => again.push(l) });
     expect(JSON.parse(again[0]!).sent ?? []).toEqual([]);
+  });
+});
+
+describe("SV-017 seeker admission", () => {
+  const member = (body: unknown, status = 200) => (async () => json(body, status)) as unknown as typeof fetch;
+  const opts = (fetchFn: typeof fetch) => ({ readApiUrl: "http://api", circle: "agents-main", fetch: fetchFn });
+
+  it("accepts an active member with enough stake and refuses the others with a reason", async () => {
+    const { checkSeekerAdmission } = await import("../src/barter/index.js");
+    expect(await checkSeekerAdmission(opts(member({ status: "active", stake: "5" })), "f.near", 5n)).toEqual({ ok: true, stake: 5n });
+    expect(await checkSeekerAdmission(opts(member({ status: "active", stake: "4" })), "f.near", 5n)).toMatchObject({ ok: false, reason: "stake_too_low" });
+    expect(await checkSeekerAdmission(opts(member({ status: "active", stake: "0" })), "f.near", 1n)).toMatchObject({ ok: false, reason: "stake_too_low" });
+    expect(await checkSeekerAdmission(opts(member({ status: "suspended", stake: "50" })), "f.near", 1n)).toMatchObject({ ok: false, reason: "not_active" });
+    expect(await checkSeekerAdmission(opts(member({ error: { code: "member_not_found" } }, 404)), "f.near", 1n)).toMatchObject({ ok: false, reason: "not_a_member" });
+  });
+
+  it("seek --send by a seeker without stake sends nothing and exits 1", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "barter-adm-"));
+    const agents = join(dir, "agents.json");
+    writeFileSync(agents, JSON.stringify([agent]));
+    const posts: unknown[] = [];
+    const fetchFn = (async (url: string, init?: any) => {
+      if (init?.method === "POST") posts.push(url);
+      return String(url).includes("/members/") ? json({ status: "active", stake: "0" }) : json({ items: [], nextCursor: null });
+    }) as unknown as typeof fetch;
+    const out: string[] = [];
+    const code = await runBarterCli(["seek", "--epoch", "4", "--agents", agents, "--seeker", "finder.near", "--send"], {
+      env: { X207_READ_API_URL: "http://api", X207_CONTRACT_ID: CIRCLE, SEEKER_PRIVATE_KEY: key.secretKey } as NodeJS.ProcessEnv,
+      fetch: fetchFn, now: () => NOW * 1000, out: (l) => out.push(l), err: () => {},
+    });
+    expect(code).toBe(1);
+    expect(JSON.parse(out[0]!)).toMatchObject({ offers: [], refused: "stake_too_low" });
+    expect(posts).toEqual([]);
   });
 });

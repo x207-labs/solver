@@ -6,6 +6,7 @@ import { NearRpcChain, parseSecretKey, type SubmitOutcome } from "../submit/inde
 import { cycleTerms, findIntentCycles } from "./cycles.js";
 import { loadOpenIntents, loadOpenListings } from "./load.js";
 import { matchListingRings, matchListings } from "./match.js";
+import { checkSeekerAdmission } from "./admission.js";
 import { OfferLedger, planSeekerOffers, type SeekerAgent } from "./seeker.js";
 import { commitBundleArgs, postBundleProposal, readyProposals, sendReferrals } from "./send.js";
 
@@ -21,7 +22,7 @@ export interface BarterCliIo {
 
 const USAGE = `usage: x207-barter rings --epoch <n> [--send]
        x207-barter commit --epoch <n>
-       x207-barter seek --epoch <n> --agents <file.json> --seeker <account> [--share-bps <n>] [--max-offers <n>] [--period <seconds>] [--ledger <file.json>] [--record] [--send] [--ttl <seconds>]`;
+       x207-barter seek --epoch <n> --agents <file.json> --seeker <account> [--share-bps <n>] [--max-offers <n>] [--period <seconds>] [--ledger <file.json>] [--record] [--send] [--ttl <seconds>] [--min-stake <units>]`;
 
 /**
  * `x207-barter` (SV-011, SV-015). `rings` reads the open intents and listings from the read API and prints the bundle
@@ -37,7 +38,7 @@ export async function runBarterCli(argv: string[], io: BarterCliIo): Promise<num
     options: {
       epoch: { type: "string" }, agents: { type: "string" }, seeker: { type: "string" }, "share-bps": { type: "string" },
       "max-offers": { type: "string" }, period: { type: "string" }, ledger: { type: "string" }, record: { type: "boolean" },
-      send: { type: "boolean" }, ttl: { type: "string" },
+      send: { type: "boolean" }, ttl: { type: "string" }, "min-stake": { type: "string" },
     },
   });
   const int = (name: string, raw: string | undefined, fallback?: number): number => {
@@ -118,6 +119,13 @@ export async function runBarterCli(argv: string[], io: BarterCliIo): Promise<num
   if (values.send === true) {
     const key = io.env.SEEKER_PRIVATE_KEY;
     if (!key || !key.startsWith("ed25519:")) throw new UsageError("--send butuh SEEKER_PRIVATE_KEY (ed25519:<base58>, kunci voucher akun pencari)");
+    const minStake = BigInt(int("min-stake", values["min-stake"] ?? io.env.X207_SEEKER_MIN_STAKE, 1));
+    const admission = await checkSeekerAdmission(book, seeker, minStake);
+    if (!admission.ok) {
+      io.out(JSON.stringify({ epoch, seeker, offers: [], refused: admission.reason }));
+      io.err(`x207-barter: pencari ditolak (${admission.reason}): ${admission.detail}`);
+      return 1;
+    }
     outcomes = await sendReferrals({ readApiUrl, circle, ...(io.fetch ? { fetch: io.fetch } : {}) }, offers, {
       seeker, secretKey: key as `ed25519:${string}`, circle: contract, now: nowSeconds, ttlSeconds: int("ttl", values.ttl, 3600),
       searcherShareBps: int("share-bps", values["share-bps"], 300),

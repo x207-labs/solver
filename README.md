@@ -78,11 +78,12 @@ Module M4, features F3 and F5 (F5 is roadmap). Backlog: SV-001 to SV-009. Spec: 
 
 ```bash
 x207-barter rings --epoch 42
-x207-barter seek --epoch 42 --agents agents.json --seeker finder.near [--share-bps 300] [--max-offers 3] [--period 86400] [--ledger ledger.json] [--record]
+x207-barter seek --epoch 42 --agents agents.json --seeker finder.near [--share-bps 300] [--max-offers 3] [--period 86400] [--ledger ledger.json] [--record] [--send] [--min-stake 1]
 ```
 
 - `rings` reads the open intents and listings from the read API and prints the bundle proposals (terms and `terms_hash`): rings of intents with balanced legs, pairs of listings (with the cashback leg of a discount listing) and rings of listings without a direct partner. The output does not depend on the order of the books.
 - `seek` prepares the offers of the autonomous seeker for the agents in `agents.json` (`account`, `discoverable`, `optIn`, `idle`, `offers`, `canPay`). Only idle, discoverable, opt-in agents get an offer, at most `--max-offers` per `--period`, and a refused pair is never offered again (`OfferLedger`). `--record` stores what was prepared in the ledger file.
+- Seeker role open to others (SV-017): anyone may run `seek`, but `seek --send` first reads `GET …/members/{seeker}` and sends nothing unless the seeker is an `active` member with a stake of at least `--min-stake` base units (default 1, or `X207_SEEKER_MIN_STAKE`). A refused seeker prints `refused: not_a_member | not_active | stake_too_low` and exits 1. Pay per offer is not built; the stake route is the one that exists.
 - `rings --send` posts each proposal to the book (`POST …/bundle-proposals`); the agents sign `terms_hash` through the book and `x207-barter commit --epoch 42` sends `commit_bundle` for every proposal of that epoch that is `ready` (it needs the `SOLVER_*` submit variables; the contract checks signatures, headroom and that the `terms_hash` is new).
 - `seek --send` signs each prepared offer as a referral with `SEEKER_PRIVATE_KEY` (the voucher key of `--seeker`, `ed25519:<base58>`) and posts it to the inbox of the agent (`POST …/referrals`, `--ttl` seconds, default 3600). The agent decides and signs its own round 1 offer. With `--record` only referrals that were accepted by the book count against the per-agent limit; a pair the agent refused is remembered. The same listing is not offered again to the same agent within a period.
 - After `x207-solver`, the clearing log shows per bundle how many legs the proposal clears completely.
