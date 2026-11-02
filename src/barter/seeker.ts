@@ -1,5 +1,4 @@
 import { planOffer, type Listing, type ListingSide, type Offer, type OfferPlan } from "@x207/core";
-import { withSearchLeg } from "./search-leg.js";
 import { openListing, satisfies, type OpenListing } from "./match.js";
 
 /** An agent the seeker may visit. Only `optIn` agents that are `discoverable` and idle ever get an offer (SV-016). */
@@ -119,7 +118,7 @@ export function planSeekerOffers(listings: readonly Listing[], agents: readonly 
         quantity: listing.offer.quantity,
         deliver_by: config.now + (config.deliverIn ?? 3600),
       };
-      const plan = withSearchLeg(planOffer({ listing, offer, epoch: config.epoch, searcher: config.seeker, searcherShareBps: config.searcherShareBps }), config.seeker);
+      const plan = planOffer({ listing, offer, epoch: config.epoch, searcher: config.seeker, searcherShareBps: config.searcherShareBps });
       out.push({ to: agent.account, listingHash: hash, offer, plan });
       planned.set(agent.account, (planned.get(agent.account) ?? 0) + 1);
     }
