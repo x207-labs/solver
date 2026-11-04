@@ -37,7 +37,7 @@ async function main(argv: string[]): Promise<number> {
   }
   console.error(
     `x207-solver: proposal ${result.proposal.edges.length} edge, cleared_total ${result.clearedTotal}, ` +
-      `dipangkas ${result.pruned}`,
+      `pruned ${result.pruned}`,
   );
   await reportBundleLegs(result, readApiUrl, circle, epoch);
   console.log(JSON.stringify(result.proposal));
