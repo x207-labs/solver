@@ -1,0 +1,15 @@
+# Solver trust and gas
+
+Moved from the README of the solver repository.
+
+## Trust
+You do not have to trust a solver. `x207-circle` checks every proposal in `O(n)` before it stores it (ADR-01, ADR-03), and two invariants are enough:
+1. **No edge clears more than is owed.** For every edge, `cleared <= obligation` of the epoch snapshot; an edge that is not in the snapshot, a duplicate edge or a zero edge is refused (`ERR_CLEARED_EXCEEDS_OBLIGATION`, `ERR_EDGE_NOT_IN_SNAPSHOT`, `ERR_DUPLICATE_EDGE`, `ERR_ZERO_CLEARED`).
+2. **Every member clears as much as it receives.** For every member, the sum of `cleared` on edges where it is the debtor equals the sum where it is the creditor (`ERR_UNBALANCED_MEMBER`). A proposal made only of cycles satisfies this, and it leaves every net position unchanged.
+
+Anyone may submit (`submit_clearing` is permissionless). The contract keeps the valid proposal with the largest `cleared_total`, with a deterministic tie-break, and `commit_epoch` applies it after the window (ADR-21). A solver can therefore only propose a smaller clearing than the best one, never a harmful one: it cannot move a net position, create credit or touch stake. Its fee, when enabled, is a fixed share of the value it cleared.
+
+Compare NEAR Intents: there the user signs an intent for each swap or accepts a solver quote per trade. Here a member agrees once, when it joins, to cycle clearing under these two rules, because a cycle never changes who owes what to whom outside the cycle. The contract, not the member and not the solver, enforces the rules.
+
+## Gas
+`submit_clearing` burns 2.5 Tgas for 3 edges, 3.4 for 12 and 5.2 for 30 (near-sandbox, `contracts/tests/ct043_gas.rs`), 28 Tgas for 210 edges on testnet (CT-100, `docs/testnet-0.0.13.json`) and about 33 for 300 (`contracts/docs/gas.md`). The default attached gas is **60 Tgas** (SV-020). Unused gas is refunded, but a transaction **reserves** its prepaid gas times the gas price from the balance of the signer while it runs: the node reserves ten times the burn price of gas (1e9 against 1e8 yoctoNEAR per gas on testnet) plus about 0.9 Tgas of fixed fees, that is **0.001 NEAR per Tgas**: 60 Tgas reserve 0.061 NEAR, 100 Tgas 0.101, 150 Tgas 0.151, 250 Tgas 0.251 and 300 Tgas 0.301 (measured on testnet, see `src/submit/rpc.ts`). On testnet a solver with 0.24 NEAR could not send 250 Tgas and the proposal window passed (CT-100, run 1). Before it signs, the solver reads the balance and the gas price, repeats that reserve (`reserveOf`) and stops with `... is less than the 0.25 NEAR reserved for 250 Tgas` (the amounts of the call) if the balance is short; nothing is sent. The keeper (`scripts/keeper.mjs`) does the same with its own gas per method (close 20, commit 150, finalize 100 Tgas) and writes a JSON line `{"warn":"balance_short", ...}` to stderr with the balance and the amount needed; that line is the signal to alert on (there is no metrics endpoint). A gas key pays from its own balance and is not checked.
