@@ -70,7 +70,7 @@ function parseAmount(value: unknown, label: string): bigint {
     throw invalid(`${label} is not an integer string: ${JSON.stringify(value)}`);
   }
   const amount = BigInt(value);
-  if (amount > U128_MAX) throw invalid(`${label} melebihi u128: ${value}`);
+  if (amount > U128_MAX) throw invalid(`${label} exceeds u128: ${value}`);
   return amount;
 }
 
@@ -111,13 +111,13 @@ export function parseSnapshot(body: unknown, circle: string, epoch: number): Obl
   if (body.edgeCount !== parsed.length) {
     throw new SnapshotError(
       "snapshot_mismatch",
-      `edgeCount ${String(body.edgeCount)}, edges berisi ${parsed.length}`,
+      `edgeCount ${String(body.edgeCount)}, edges holds ${parsed.length}`,
     );
   }
   if (declaredTotal !== graph.totalObligation) {
     throw new SnapshotError(
       "snapshot_mismatch",
-      `totalObligation ${declaredTotal}, jumlah edges ${graph.totalObligation}`,
+      `totalObligation ${declaredTotal}, sum of edges ${graph.totalObligation}`,
     );
   }
   return graph;

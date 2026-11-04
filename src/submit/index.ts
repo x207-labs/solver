@@ -90,7 +90,7 @@ export async function submitProposal(chain: ClearingChain, proposal: Proposal, l
         `edge_count=${simulation.edge_count} better_than_current=${simulation.better_than_current}`,
     );
     if (!simulation.valid) {
-      log(`x207-solver: simulasi menolak proposal: ${simulation.reason ?? "tanpa alasan"}`);
+      log(`x207-solver: simulation refused the proposal: ${simulation.reason ?? "no reason"}`);
       return { status: "invalid", exitCode: 1 };
     }
     if (!simulation.better_than_current) {
@@ -105,7 +105,7 @@ export async function submitProposal(chain: ClearingChain, proposal: Proposal, l
       log(`x207-solver: submit_clearing accepted, tx ${outcome.txHash}; menggantikan proposal: ${replaced}`);
       return { status: "submitted", exitCode: 0, txHash: outcome.txHash };
     }
-    log(`x207-solver: submit_clearing gagal${outcome.txHash ? ` (tx ${outcome.txHash})` : ""}: ${outcome.error}`);
+    log(`x207-solver: submit_clearing failed${outcome.txHash ? ` (tx ${outcome.txHash})` : ""}: ${outcome.error}`);
     const race = RACE_ERRORS.some((code) => outcome.error.includes(code));
     return {
       status: outcome.error.includes("ERR_PROPOSAL_WINDOW_CLOSED") ? "window_closed" : race ? "lost_race" : "chain_error",

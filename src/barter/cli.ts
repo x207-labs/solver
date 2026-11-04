@@ -123,7 +123,7 @@ export async function runBarterCli(argv: string[], io: BarterCliIo): Promise<num
     const admission = await checkSeekerAdmission(book, seeker, minStake);
     if (!admission.ok) {
       io.out(JSON.stringify({ epoch, seeker, offers: [], refused: admission.reason }));
-      io.err(`x207-barter: pencari ditolak (${admission.reason}): ${admission.detail}`);
+      io.err(`x207-barter: seeker refused (${admission.reason}): ${admission.detail}`);
       return 1;
     }
     outcomes = await sendReferrals({ readApiUrl, circle, ...(io.fetch ? { fetch: io.fetch } : {}) }, offers, {
@@ -139,6 +139,6 @@ export async function runBarterCli(argv: string[], io: BarterCliIo): Promise<num
   }
   if (ledgerFile && (values.record === true || (outcomes ?? []).some((o) => o.status === "refused"))) writeFileSync(ledgerFile, JSON.stringify(ledger.snapshot()));
   io.out(JSON.stringify({ epoch, seeker, offers, ...(outcomes ? { sent: outcomes } : {}) }));
-  io.err(`x207-barter: ${offers.length} tawaran disiapkan${outcomes ? `, ${outcomes.filter((o) => o.status === "sent").length} terkirim` : ""}${values.record ? ", dicatat" : ""}`);
+  io.err(`x207-barter: ${offers.length} offers prepared${outcomes ? `, ${outcomes.filter((o) => o.status === "sent").length} sent` : ""}${values.record ? ", recorded" : ""}`);
   return 0;
 }

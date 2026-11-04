@@ -47,7 +47,7 @@ export interface ProposalView {
  */
 export async function postBundleProposal(api: BookApi, terms: BundleTerms, termsHash: string): Promise<{ created: boolean; proposal: ProposalView }> {
   const reply = await request(api, "POST", "/bundle-proposals", { terms, termsHash });
-  if (reply.status !== 201 && reply.status !== 200) throw new Error(`bundle-proposals ${reply.status}: ${reply.body?.error?.code ?? "tanpa kode"}`);
+  if (reply.status !== 201 && reply.status !== 200) throw new Error(`bundle-proposals ${reply.status}: ${reply.body?.error?.code ?? "no code"}`);
   return { created: reply.status === 201, proposal: reply.body as ProposalView };
 }
 
