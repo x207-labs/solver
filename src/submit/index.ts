@@ -1,6 +1,6 @@
 import type { ClearingEdge, Proposal } from "../mincostflow/index.js";
 
-export { NearRpcChain, RpcError, failureText, type NearRpcOptions } from "./rpc.js";
+export { NearRpcChain, RpcError, failureText, reserveOf, type NearRpcOptions } from "./rpc.js";
 export { parseSecretKey, signTransaction, encodeTransaction, type SolverKey, type FunctionCallTx } from "./tx.js";
 
 /** `get_epoch` fields the solver needs. `phase` is derived from the clock (spec section 8). */

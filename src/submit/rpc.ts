@@ -77,16 +77,19 @@ export class NearRpcChain implements ClearingChain {
   }
 
   /**
-   * SV-020: a transaction reserves its prepaid gas times the gas price from the balance of the signer and refunds what is not burnt, so a signer with less than that is
-   * refused by the node (`NotEnoughBalanceError`) even if the call itself costs a hundredth of it (testnet, CT-100: 250 Tgas reserved 0.25 NEAR for a call of 28 Tgas).
-   * The check says so before anything is signed. A gas key pays from its own balance and is not checked here.
+   * SV-020: a transaction reserves its prepaid gas from the balance of the signer and refunds what is not burnt, so a signer with less than the reserve is refused by the node
+   * (`NotEnoughBalanceError`) even if the call itself costs a hundredth of it. The reserve is not gas times the gas price: the node inflates the price by 3 percent for every
+   * receipt that the prepaid gas could pay for (`pessimistic_gas_price_inflation`). Measured on testnet (CT-100): 250 Tgas reserved 0.2509 NEAR at a gas price of 1e8, that is 10.04 times
+   * 250 Tgas at the price, which is 1.03 to the power 78, so one receipt is about 3.2 Tgas. `reserveOf` repeats that; it was calibrated on that one measurement and rounds the
+   * exponent up, so it may refuse a signer that the node would accept by a few percent, never the other way. The check says so before anything is signed. A gas key pays from its own
+   * balance and is not checked here.
    */
   private async ensureBalance(gasTgas: number): Promise<void> {
     const { signerId } = this.options;
     const account = await this.rpc("query", { request_type: "view_account", finality: "optimistic", account_id: signerId });
     const price = await this.rpc("gas_price", [null]);
     if (typeof account?.amount !== "string" || typeof price?.gas_price !== "string") return; // an answer that this check does not understand does not stop the call
-    const reserved = BigInt(gasTgas) * 1_000_000_000_000n * BigInt(price.gas_price);
+    const reserved = reserveOf(gasTgas, BigInt(price.gas_price));
     const balance = BigInt(account.amount);
     if (balance < reserved) {
       const near = (v: bigint) => (Number(v / 10n ** 20n) / 10_000).toString();
@@ -148,6 +151,16 @@ export class NearRpcChain implements ClearingChain {
     if (failure !== undefined) return { ok: false, txHash: signed.hash, error: failureText(failure) };
     return { ok: true, txHash: signed.hash };
   }
+}
+
+/** Gas of one receipt for the inflation of the reserved price, in Tgas (calibrated on testnet, see `ensureBalance`). */
+const RECEIPT_TGAS = 3.2;
+
+/** yoctoNEAR that a transaction with `gasTgas` of prepaid gas reserves at `gasPrice` (yoctoNEAR per gas): gas times price times 1.03 per receipt of `RECEIPT_TGAS`, rounded up. */
+export function reserveOf(gasTgas: number, gasPrice: bigint): bigint {
+  const plain = BigInt(gasTgas) * 1_000_000_000_000n * gasPrice;
+  const factor = Math.pow(1.03, Math.ceil(gasTgas / RECEIPT_TGAS));
+  return (plain * BigInt(Math.ceil(factor * 1_000_000))) / 1_000_000n;
 }
 
 /** `ERR_...: detail` of a contract panic, or the raw failure JSON. */
