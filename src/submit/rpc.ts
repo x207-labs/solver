@@ -76,9 +76,30 @@ export class NearRpcChain implements ClearingChain {
     return this.call("submit_clearing", { epoch, edges });
   }
 
+  /**
+   * SV-020: a transaction reserves its prepaid gas times the gas price from the balance of the signer and refunds what is not burnt, so a signer with less than that is
+   * refused by the node (`NotEnoughBalanceError`) even if the call itself costs a hundredth of it (testnet, CT-100: 250 Tgas reserved 0.25 NEAR for a call of 28 Tgas).
+   * The check says so before anything is signed. A gas key pays from its own balance and is not checked here.
+   */
+  private async ensureBalance(gasTgas: number): Promise<void> {
+    const { signerId } = this.options;
+    const account = await this.rpc("query", { request_type: "view_account", finality: "optimistic", account_id: signerId });
+    const price = await this.rpc("gas_price", [null]);
+    if (typeof account?.amount !== "string" || typeof price?.gas_price !== "string") return; // an answer that this check does not understand does not stop the call
+    const reserved = BigInt(gasTgas) * 1_000_000_000_000n * BigInt(price.gas_price);
+    const balance = BigInt(account.amount);
+    if (balance < reserved) {
+      const near = (v: bigint) => (Number(v / 10n ** 20n) / 10_000).toString();
+      throw new RpcError(
+        `saldo ${near(balance)} NEAR di ${signerId} kurang dari ${near(reserved)} NEAR yang dicadangkan untuk ${gasTgas} Tgas gas: isi saldo atau turunkan SUBMIT_GAS_TGAS (submit_clearing memakai sekitar 28 Tgas untuk 210 edge)`,
+      );
+    }
+  }
+
   /** One signed FunctionCall to the circle contract (`submit_clearing`, `commit_bundle`). */
   async call(methodName: string, args: unknown): Promise<SubmitOutcome> {
     const { contractId, signerId, key, gasTgas, gasKeyNonceIndex } = this.options;
+    if (gasKeyNonceIndex === undefined) await this.ensureBalance(gasTgas);
     let nonce: bigint;
     let blockHash: string;
     if (gasKeyNonceIndex === undefined) {

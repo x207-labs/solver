@@ -30,7 +30,7 @@ Copy `.env.example` to `.env` (the CLI loads `.env` from the working directory).
 | `SOLVER_ACCOUNT_ID` | to submit | Account that signs `submit_clearing` |
 | `SOLVER_PRIVATE_KEY` | to submit | `ed25519:<base58>` secret key of that account. Keep it in `.env`; the solver never prints it |
 | `SOLVER_GAS_KEY_NONCE_INDEX` | no | Set when `SOLVER_PRIVATE_KEY` is a gas key (NEP-611, ADR-11b): the nonce lane to use, 0 to 1023. The transaction is then `Transaction::V1` and gas is paid from the key's balance, so several solver processes can submit at once on different lanes. Create and fund the key with `near account add-key ... grant-gas-key-full-access` and `fund-gas-key` |
-| `SUBMIT_GAS_TGAS` | no | Gas attached to `submit_clearing`, 1 to 300, default `300` |
+| `SUBMIT_GAS_TGAS` | no | Gas attached to `submit_clearing`, 1 to 300, default `60` (SV-020). The barter command uses it too when it is set; otherwise `x207-barter` attaches 150 Tgas to `commit_bundle` (79 Tgas for 64 legs) |
 
 Set all four submit variables or none. A partial set stops the run with exit code 1 and names what is missing.
 
@@ -68,7 +68,7 @@ Anyone may submit (`submit_clearing` is permissionless). The contract keeps the 
 Compare NEAR Intents: there the user signs an intent for each swap or accepts a solver quote per trade. Here a member agrees once, when it joins, to cycle clearing under these two rules, because a cycle never changes who owes what to whom outside the cycle. The contract, not the member and not the solver, enforces the rules.
 
 ## Gas
-`submit_clearing` burns 2.5 Tgas for 3 edges, 3.4 for 12 and 5.2 for 30 (near-sandbox, `contracts/tests/ct043_gas.rs`). The default attached gas is 300 Tgas, the most one transaction can carry; unused gas is refunded.
+`submit_clearing` burns 2.5 Tgas for 3 edges, 3.4 for 12 and 5.2 for 30 (near-sandbox, `contracts/tests/ct043_gas.rs`), 28 Tgas for 210 edges on testnet (CT-100, `docs/testnet-0.0.13.json`) and about 33 for 300 (`contracts/docs/gas.md`). The default attached gas is **60 Tgas** (SV-020). Unused gas is refunded, but a transaction **reserves** its prepaid gas times the gas price from the balance of the signer while it runs: 250 Tgas reserve 0.25 NEAR, 60 Tgas reserve 0.06 NEAR (testnet price). On testnet a solver with 0.24 NEAR could not send 250 Tgas and the proposal window passed (CT-100, run 1). Before it signs, the solver reads the balance and the gas price and stops with `saldo ... kurang dari ... yang dicadangkan` if the balance is short; a gas key pays from its own balance and is not checked.
 
 ## IDs
 Module M4, features F3 and F5 (F5 is roadmap). Backlog: SV-001 to SV-009. Spec: Spec API Backend 3.3, Spec Antarmuka Kontrak 3.6 and 4.3.

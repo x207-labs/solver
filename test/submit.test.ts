@@ -305,7 +305,9 @@ describe("SV-006 configuration", () => {
       SOLVER_ACCOUNT_ID: "solver.near",
       SOLVER_PRIVATE_KEY: "ed25519:x",
     });
-    expect(config).toMatchObject({ rpcUrl: "http://rpc", contractId: "circle.near", gasTgas: 300 });
+    // SV-020: 60 Tgas by default, the barter command uses its own default unless the variable is set
+    expect(config).toMatchObject({ rpcUrl: "http://rpc", contractId: "circle.near", gasTgas: 60, gasExplicit: false });
+    expect(readSubmitConfig({ NEAR_RPC_URL: "u", X207_CONTRACT_ID: "c", SOLVER_ACCOUNT_ID: "s", SOLVER_PRIVATE_KEY: "k", SUBMIT_GAS_TGAS: "100" })).toMatchObject({ gasTgas: 100, gasExplicit: true });
   });
 
   it.each(["0", "301", "abc", "1.5"])("rejects SUBMIT_GAS_TGAS %s", (gas) => {

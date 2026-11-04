@@ -15,6 +15,8 @@ export interface SubmitConfig {
   signerId: string;
   secretKey: string;
   gasTgas: number;
+  /** `true` when `SUBMIT_GAS_TGAS` was set: the barter command then uses it too, otherwise it uses `BUNDLE_GAS_TGAS`. */
+  gasExplicit: boolean;
   /** `SOLVER_GAS_KEY_NONCE_INDEX`: the key is a gas key (NEP-611) and this is the lane to use. */
   gasKeyNonceIndex?: number;
 }
@@ -53,6 +55,9 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
   return { readApiUrl, circle: env.X207_CIRCLE_ID || "agents-main", maxEdges };
 }
 
+/** SV-020: `commit_bundle` of 64 legs burns 79 Tgas (contracts/docs/gas.md); 150 Tgas keeps a margin and reserves 0.15 NEAR. */
+export const BUNDLE_GAS_TGAS = 150;
+
 const SUBMIT_VARS = ["NEAR_RPC_URL", "X207_CONTRACT_ID", "SOLVER_ACCOUNT_ID", "SOLVER_PRIVATE_KEY"] as const;
 
 /**
@@ -64,7 +69,8 @@ export function readSubmitConfig(env: NodeJS.ProcessEnv): SubmitConfig | null {
   if (present.length === 0) return null;
   const missing = SUBMIT_VARS.filter((name) => !env[name]);
   if (missing.length > 0) throw new UsageError(`konfigurasi submit tidak lengkap, kurang: ${missing.join(", ")}`);
-  const rawGas = env.SUBMIT_GAS_TGAS || "300";
+  // SV-020: 60 Tgas is enough for `submit_clearing` (28 Tgas for 210 edge, about 33 for 300 in the tests) and reserves 0.06 NEAR instead of 0.3
+  const rawGas = env.SUBMIT_GAS_TGAS || "60";
   const gasTgas = Number(rawGas);
   if (!/^[1-9]\d*$/.test(rawGas) || gasTgas > 300) {
     throw new UsageError(`SUBMIT_GAS_TGAS harus bilangan bulat 1..300, diterima "${rawGas}"`);
@@ -84,5 +90,6 @@ export function readSubmitConfig(env: NodeJS.ProcessEnv): SubmitConfig | null {
     signerId: env.SOLVER_ACCOUNT_ID!,
     secretKey: env.SOLVER_PRIVATE_KEY!,
     gasTgas,
+    gasExplicit: Boolean(env.SUBMIT_GAS_TGAS),
   };
 }

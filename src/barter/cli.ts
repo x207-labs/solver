@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { termsHash } from "@x207/core";
-import { readSubmitConfig, UsageError } from "../config.js";
+import { BUNDLE_GAS_TGAS, readSubmitConfig, UsageError } from "../config.js";
 import { NearRpcChain, parseSecretKey, type SubmitOutcome } from "../submit/index.js";
 import { cycleTerms, findIntentCycles } from "./cycles.js";
 import { loadOpenIntents, loadOpenListings } from "./load.js";
@@ -87,7 +87,7 @@ export async function runBarterCli(argv: string[], io: BarterCliIo): Promise<num
         const submit = readSubmitConfig(io.env);
         if (submit === null) throw new UsageError("commit butuh NEAR_RPC_URL, X207_CONTRACT_ID, SOLVER_ACCOUNT_ID dan SOLVER_PRIVATE_KEY");
         const chain = new NearRpcChain({
-          rpcUrl: submit.rpcUrl, contractId: submit.contractId, signerId: submit.signerId, key: parseSecretKey(submit.secretKey), gasTgas: submit.gasTgas,
+          rpcUrl: submit.rpcUrl, contractId: submit.contractId, signerId: submit.signerId, key: parseSecretKey(submit.secretKey), gasTgas: submit.gasExplicit ? submit.gasTgas : BUNDLE_GAS_TGAS,
           ...(submit.gasKeyNonceIndex === undefined ? {} : { gasKeyNonceIndex: submit.gasKeyNonceIndex }),
         });
         return chain.call("commit_bundle", args);
