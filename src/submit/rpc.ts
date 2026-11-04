@@ -78,11 +78,10 @@ export class NearRpcChain implements ClearingChain {
 
   /**
    * SV-020: a transaction reserves its prepaid gas from the balance of the signer and refunds what is not burnt, so a signer with less than the reserve is refused by the node
-   * (`NotEnoughBalanceError`) even if the call itself costs a hundredth of it. The reserve is not gas times the gas price: the node inflates the price by 3 percent for every
-   * receipt that the prepaid gas could pay for (`pessimistic_gas_price_inflation`). Measured on testnet (CT-100): 250 Tgas reserved 0.2509 NEAR at a gas price of 1e8, that is 10.04 times
-   * 250 Tgas at the price, which is 1.03 to the power 78, so one receipt is about 3.2 Tgas. `reserveOf` repeats that; it was calibrated on that one measurement and rounds the
-   * exponent up, so it may refuse a signer that the node would accept by a few percent, never the other way. The check says so before anything is signed. A gas key pays from its own
-   * balance and is not checked here.
+   * (`NotEnoughBalanceError`) even if the call itself costs a hundredth of it. The node reserves at ten times the gas price (the price of burnt gas on testnet is 1e8
+   * yoctoNEAR, the reserve is 1e9), plus the fixed fees of the transaction (about 0.9 Tgas). Measured on testnet with a signer of 0.236 NEAR (CT-100 and the probe of 2026-11-04): the
+   * node refused 250, 245, 240 Tgas with costs of 0.2509, 0.2459, 0.2409 NEAR and 100 Tgas with 0.1009 NEAR, and accepted 235 Tgas (0.2359) and, with 0.0647 NEAR, 60 Tgas (0.0609).
+   * `reserveOf` repeats that. A gas key pays from its own balance and is not checked here.
    */
   private async ensureBalance(gasTgas: number): Promise<void> {
     const { signerId } = this.options;
@@ -153,14 +152,13 @@ export class NearRpcChain implements ClearingChain {
   }
 }
 
-/** Gas of one receipt for the inflation of the reserved price, in Tgas (calibrated on testnet, see `ensureBalance`). */
-const RECEIPT_TGAS = 3.2;
+/** The node reserves ten times the gas price (measured, see `ensureBalance`) and adds about 0.9 Tgas of fixed fees. */
+const RESERVE_PRICE_FACTOR = 10n;
+const FIXED_FEES_GAS = 900_000_000_000n;
 
-/** yoctoNEAR that a transaction with `gasTgas` of prepaid gas reserves at `gasPrice` (yoctoNEAR per gas): gas times price times 1.03 per receipt of `RECEIPT_TGAS`, rounded up. */
+/** yoctoNEAR that a transaction with `gasTgas` of prepaid gas reserves when the burn price is `gasPrice` (yoctoNEAR per gas). */
 export function reserveOf(gasTgas: number, gasPrice: bigint): bigint {
-  const plain = BigInt(gasTgas) * 1_000_000_000_000n * gasPrice;
-  const factor = Math.pow(1.03, Math.ceil(gasTgas / RECEIPT_TGAS));
-  return (plain * BigInt(Math.ceil(factor * 1_000_000))) / 1_000_000n;
+  return (BigInt(gasTgas) * 1_000_000_000_000n + FIXED_FEES_GAS) * gasPrice * RESERVE_PRICE_FACTOR;
 }
 
 /** `ERR_...: detail` of a contract panic, or the raw failure JSON. */

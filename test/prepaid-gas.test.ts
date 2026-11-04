@@ -22,13 +22,11 @@ function chainWith(balance: bigint, gasTgas: number, seen: string[]) {
 }
 
 describe("SV-020 prepaid gas and the balance of the signer", () => {
-  it("the reserve repeats the measurement of CT-100: 250 Tgas at the price 1e8 reserve about 0.25 NEAR, and it grows faster than the gas", () => {
+  it("the reserve repeats the measurements on testnet (price 1e8): 250, 245, 240 and 100 Tgas refused at 0.2509, 0.2459, 0.2409 and 0.1009 NEAR; 60 Tgas needs 0.0609", () => {
     const near = (v: bigint) => Number(v / 10n ** 18n) / 1_000_000;
-    expect(near(reserveOf(250, 100_000_000n))).toBeGreaterThan(0.2509); // never below the measured reserve
-    expect(near(reserveOf(250, 100_000_000n))).toBeLessThan(0.28);
-    expect(near(reserveOf(60, 100_000_000n))).toBeLessThan(0.012);
-    expect(near(reserveOf(150, 100_000_000n))).toBeLessThan(0.07);
-    expect(reserveOf(300, 100_000_000n)).toBeGreaterThan(8n * reserveOf(150, 100_000_000n));
+    for (const [tgas, cost] of [[250, 0.2509], [245, 0.2459], [240, 0.2409], [100, 0.1009], [60, 0.0609], [235, 0.2359]] as const) {
+      expect(near(reserveOf(tgas, 100_000_000n)), `${tgas} Tgas`).toBeCloseTo(cost, 3);
+    }
   });
 
   it("a signer with 0.24 NEAR cannot send 250 Tgas (the node reserves 0.2509 NEAR at a gas price of 1e8): the call says so and nothing is sent", async () => {
@@ -39,7 +37,7 @@ describe("SV-020 prepaid gas and the balance of the signer", () => {
     expect(seen).not.toContain("send_tx");
   });
 
-  it("the same signer sends 60 Tgas (it reserves about 0.01 NEAR)", async () => {
+  it("the same signer sends 60 Tgas (it reserves 0.0609 NEAR)", async () => {
     const seen: string[] = [];
     const outcome = await chainWith((24n * NEAR) / 100n, 60, seen).submit(42, REFERENCE_TX.args.edges);
     expect(outcome.ok).toBe(true);

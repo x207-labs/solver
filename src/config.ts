@@ -69,7 +69,7 @@ export function readSubmitConfig(env: NodeJS.ProcessEnv): SubmitConfig | null {
   if (present.length === 0) return null;
   const missing = SUBMIT_VARS.filter((name) => !env[name]);
   if (missing.length > 0) throw new UsageError(`konfigurasi submit tidak lengkap, kurang: ${missing.join(", ")}`);
-  // SV-020: 60 Tgas is enough for `submit_clearing` (28 Tgas for 210 edge, about 33 for 300 in the tests) and reserves 0.06 NEAR instead of 0.3
+  // SV-020: 60 Tgas is enough for `submit_clearing` (28 Tgas for 210 edge, about 33 for 300 in the tests) and reserves 0.061 NEAR instead of 0.301
   const rawGas = env.SUBMIT_GAS_TGAS || "60";
   const gasTgas = Number(rawGas);
   if (!/^[1-9]\d*$/.test(rawGas) || gasTgas > 300) {
