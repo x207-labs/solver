@@ -8,6 +8,19 @@ At the end of an epoch the debts in a credit circle are frozen. The solver reads
 
 **You do not have to trust a solver, and anyone can run one.** The contract checks every proposal in `O(n)` and keeps the valid one with the largest `cleared_total`. Two invariants are enough: no edge clears more than is owed, and every member clears as much as it receives. A cycle-only proposal satisfies both and leaves every net position unchanged, so a bad solver can only propose a smaller clearing, never move a net position, create credit or touch stake. Details and the error codes: [docs/gas-and-trust.md](docs/gas-and-trust.md).
 
+```mermaid
+sequenceDiagram
+  participant S as Solver
+  participant A as Read API
+  participant C as x207-circle
+  S->>A: GET obligations (stage cutoff)
+  A-->>S: snapshot, edgeCount, totalObligation
+  Note over S: validate, min-cost flow, cycles only
+  S->>C: simulate_clearing (view)
+  C-->>S: valid, better_than_current
+  S->>C: submit_clearing (only if better)
+```
+
 ## Try it: reproduce epoch 8 from the live API
 
 Read-only, no key and no NEAR account. `--no-submit` prints the proposal and sends nothing.
