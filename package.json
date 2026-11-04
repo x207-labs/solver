@@ -6,7 +6,8 @@
     "test": "vitest run",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
-    "bench": "npm run build && node bench/benchmark.mjs"
+    "bench": "npm run build && node bench/benchmark.mjs",
+    "bench:solver": "npm run build && node bench/scale.mjs --write"
   },
   "license": "Apache-2.0",
   "type": "module",
