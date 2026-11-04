@@ -4,7 +4,7 @@ The open clearing solver of [x207](https://github.com/x207-labs/x207), and its b
 
 ## Its role in x207
 
-At the end of an epoch the debts in a credit circle are frozen. The solver reads that obligation graph from the [read API](https://github.com/x207-labs/backend), computes the largest **cycle-only** clearing with min-cost flow, and prints it in the exact shape of `submit_clearing(epoch, edges)` of the [contract](https://github.com/x207-labs/contracts). With the submit variables set it simulates first and sends only a proposal that beats the stored one.
+At the end of an epoch the debts in a circle are frozen. The solver reads that obligation graph from the [read API](https://github.com/x207-labs/backend), computes the largest **cycle-only** clearing with min-cost flow, and prints it in the exact shape of `submit_clearing(epoch, edges)` of the [contract](https://github.com/x207-labs/contracts). With the submit variables set it simulates first and sends only a proposal that beats the stored one.
 
 **You do not have to trust a solver, and anyone can run one.** The contract checks every proposal in `O(n)` and keeps the valid one with the largest `cleared_total`. Two invariants are enough: no edge clears more than is owed, and every member clears as much as it receives. A cycle-only proposal satisfies both and leaves every net position unchanged, so a bad solver can only propose a smaller clearing, never move a net position, create credit or touch stake. Details and the error codes: [docs/gas-and-trust.md](docs/gas-and-trust.md).
 
