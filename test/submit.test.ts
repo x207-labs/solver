@@ -135,7 +135,7 @@ describe("SV-006 submit", () => {
     const { result, text } = await run(chain);
     expect(chain.calls).toEqual(["get_epoch(42)"]);
     expect(result).toMatchObject({ status: "window_closed", exitCode: 0 });
-    expect(text).toContain("jendela proposal tertutup");
+    expect(text).toContain("proposal window closed");
   });
 
   // TC-SV-006-10

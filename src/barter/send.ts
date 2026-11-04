@@ -60,7 +60,7 @@ export async function readyProposals(api: BookApi, epoch: number): Promise<Propo
 
 /** Arguments of `commit_bundle` for a ready proposal: the legs and one signature per participant. */
 export function commitBundleArgs(p: ProposalView): { bundle: { epoch: number; legs: BundleTerms["legs"]; search_leg?: NonNullable<BundleTerms["search_leg"]> }; signatures: { account_id: string; signature: string }[] } {
-  if (p.status !== "ready" || p.missing.length > 0) throw new Error(`usulan ${p.termsHash} belum lengkap tanda tangannya`);
+  if (p.status !== "ready" || p.missing.length > 0) throw new Error(`proposal ${p.termsHash} is missing signatures`);
   return { bundle: { epoch: p.epoch, legs: p.terms.legs, ...(p.terms.search_leg ? { search_leg: p.terms.search_leg } : {}) }, signatures: p.signatures.map((s) => ({ account_id: s.account, signature: s.signature })) };
 }
 

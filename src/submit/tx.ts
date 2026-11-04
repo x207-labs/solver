@@ -20,14 +20,14 @@ export interface SolverKey {
 /** Reads `ed25519:<base58 of 64 bytes (seed + public key) or 32 bytes (seed)>`. */
 export function parseSecretKey(text: string): SolverKey {
   const match = /^ed25519:([1-9A-HJ-NP-Za-km-z]+)$/.exec(text.trim());
-  if (match === null) throw new Error("SOLVER_PRIVATE_KEY harus berbentuk ed25519:<base58>");
+  if (match === null) throw new Error("SOLVER_PRIVATE_KEY must look like ed25519:<base58>");
   const raw = base58Decode(match[1]!);
-  if (raw.length !== 64 && raw.length !== 32) throw new Error("SOLVER_PRIVATE_KEY harus 32 atau 64 byte");
+  if (raw.length !== 64 && raw.length !== 32) throw new Error("SOLVER_PRIVATE_KEY must be 32 or 64 bytes");
   const privateKey = createPrivateKey({ key: Buffer.concat([PKCS8_PREFIX, raw.subarray(0, 32)]), format: "der", type: "pkcs8" });
   const spki = createPublicKey(privateKey).export({ format: "der", type: "spki" });
   const publicKeyBytes = new Uint8Array(spki.subarray(spki.length - 32));
   if (raw.length === 64 && Buffer.compare(Buffer.from(raw.subarray(32)), Buffer.from(publicKeyBytes)) !== 0) {
-    throw new Error("SOLVER_PRIVATE_KEY: bagian publik tidak cocok dengan seed");
+    throw new Error("SOLVER_PRIVATE_KEY: public part does not match the seed");
   }
   return {
     publicKey: `ed25519:${base58Encode(publicKeyBytes)}`,
@@ -95,7 +95,7 @@ export function encodeTransaction(tx: FunctionCallTx, key: SolverKey): Buffer {
   const w = new Writer();
   const gasKey = tx.nonceIndex !== undefined;
   if (gasKey) {
-    if (!Number.isInteger(tx.nonceIndex) || tx.nonceIndex! < 0 || tx.nonceIndex! > 1023) throw new Error("nonceIndex harus bilangan bulat 0..1023");
+    if (!Number.isInteger(tx.nonceIndex) || tx.nonceIndex! < 0 || tx.nonceIndex! > 1023) throw new Error("nonceIndex must be an integer 0..1023");
     w.u8(TRANSACTION_V1_PREFIX);
   }
   w.string(tx.signerId);

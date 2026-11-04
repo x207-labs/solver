@@ -105,7 +105,7 @@ export function minCostFlow(graph: ObligationGraph): bigint[] {
 
   while (demand > 0n) {
     // Sending every obligation in full is feasible, so a path always exists.
-    if (!findPath()) throw new Error("min-cost flow: demand tidak terpenuhi");
+    if (!findPath()) throw new Error("min-cost flow: demand not met");
     let bottleneck = demand;
     for (let node = sink; node !== source; node = from[parent[node]!]!) {
       const available = capacity[parent[node]!]!;

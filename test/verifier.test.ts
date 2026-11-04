@@ -103,7 +103,7 @@ describe("SV-018 random checks of P5 jobs", () => {
     const base: SpotCheckNotice = { circle: CIRCLE, subject: "a.near", verifier: "b.near", job_hash: "ab".repeat(32), passed: true, expected_hash: "cd".repeat(32), got_hash: "ef".repeat(32), at: NOW };
     expect(() => signSpotCheck(base, keys.secretKey)).toThrow(/hash sama/);
     expect(() => signSpotCheck({ ...base, passed: false, got_hash: "cd".repeat(32) }, keys.secretKey)).toThrow(/berbeda/);
-    expect(() => signSpotCheck({ ...base, got_hash: null }, keys.secretKey)).toThrow(/bersama/);
+    expect(() => signSpotCheck({ ...base, got_hash: null }, keys.secretKey)).toThrow(/both set or both null/);
     expect(() => signSpotCheck({ ...base, job_hash: "xyz" }, keys.secretKey)).toThrow(/job_hash/);
   });
 });

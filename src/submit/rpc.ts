@@ -40,11 +40,11 @@ export class NearRpcChain implements ClearingChain {
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (error) {
-      throw new RpcError(`RPC ${method} tidak terjangkau: ${(error as Error).message}`);
+      throw new RpcError(`RPC ${method} unreachable: ${(error as Error).message}`);
     }
     if (!response.ok) throw new RpcError(`RPC ${method} menjawab HTTP ${response.status}`);
     const body = (await response.json()) as { result?: unknown; error?: unknown };
-    if (body.error !== undefined) throw new RpcError(`RPC ${method} gagal: ${JSON.stringify(body.error)}`);
+    if (body.error !== undefined) throw new RpcError(`RPC ${method} failed: ${JSON.stringify(body.error)}`);
     return body.result;
   }
 
@@ -56,7 +56,7 @@ export class NearRpcChain implements ClearingChain {
       method_name: method,
       args_base64: Buffer.from(JSON.stringify(args)).toString("base64"),
     });
-    if (typeof result?.error === "string") throw new RpcError(`view ${method} gagal: ${result.error}`);
+    if (typeof result?.error === "string") throw new RpcError(`view ${method} failed: ${result.error}`);
     return JSON.parse(Buffer.from(result.result).toString("utf8")) as T;
   }
 
@@ -93,7 +93,7 @@ export class NearRpcChain implements ClearingChain {
     if (balance < reserved) {
       const near = (v: bigint) => (Number(v / 10n ** 20n) / 10_000).toString();
       throw new RpcError(
-        `saldo ${near(balance)} NEAR di ${signerId} kurang dari ${near(reserved)} NEAR yang dicadangkan untuk ${gasTgas} Tgas gas: isi saldo atau turunkan SUBMIT_GAS_TGAS (submit_clearing memakai sekitar 28 Tgas untuk 210 edge)`,
+        `balance ${near(balance)} NEAR on ${signerId} is less than the ${near(reserved)} NEAR reserved for ${gasTgas} Tgas of gas: top up the balance or lower SUBMIT_GAS_TGAS (submit_clearing burns about 28 Tgas for 210 edges)`,
       );
     }
   }
@@ -112,7 +112,7 @@ export class NearRpcChain implements ClearingChain {
         public_key: key.publicKey,
       });
       if (typeof access?.nonce !== "number" && typeof access?.nonce !== "string") {
-        throw new RpcError(`kunci ${key.publicKey} tidak terdaftar di ${signerId}`);
+        throw new RpcError(`key ${key.publicKey} is not registered on ${signerId}`);
       }
       nonce = BigInt(access.nonce) + 1n;
       blockHash = access.block_hash;
@@ -126,7 +126,7 @@ export class NearRpcChain implements ClearingChain {
       });
       const lane = lanes?.nonces?.[gasKeyNonceIndex];
       if (typeof lane !== "number" && typeof lane !== "string") {
-        throw new RpcError(`gas key ${key.publicKey} di ${signerId} tidak punya jalur nonce ${gasKeyNonceIndex}`);
+        throw new RpcError(`gas key ${key.publicKey} di ${signerId} has no nonce lane ${gasKeyNonceIndex}`);
       }
       nonce = BigInt(lane) + 1n;
       blockHash = lanes.block_hash;

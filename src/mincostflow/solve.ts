@@ -57,7 +57,7 @@ export function solveClearing(graph: ObligationGraph, options: SolveOptions = {}
 
   if (edges.length > 0) {
     const check = checkProposal(graph, proposal, maxEdges);
-    if (!check.ok) throw new ProposalCheckError(`cek lokal gagal: ${check.reason}`);
+    if (!check.ok) throw new ProposalCheckError(`local check failed: ${check.reason}`);
   }
 
   let nid = 0n;

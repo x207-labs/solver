@@ -43,15 +43,15 @@ export async function runBarterCli(argv: string[], io: BarterCliIo): Promise<num
   });
   const int = (name: string, raw: string | undefined, fallback?: number): number => {
     if (raw === undefined) {
-      if (fallback === undefined) throw new UsageError(`--${name} wajib diisi\n${USAGE}`);
+      if (fallback === undefined) throw new UsageError(`--${name} is required\n${USAGE}`);
       return fallback;
     }
-    if (!/^\d+$/.test(raw)) throw new UsageError(`--${name} harus bilangan bulat >= 0, diterima "${raw}"`);
+    if (!/^\d+$/.test(raw)) throw new UsageError(`--${name} must be an integer >= 0, got "${raw}"`);
     return Number(raw);
   };
   const epoch = int("epoch", values.epoch);
   const readApiUrl = io.env.X207_READ_API_URL;
-  if (!readApiUrl) throw new UsageError("X207_READ_API_URL wajib diisi (lihat .env.example)");
+  if (!readApiUrl) throw new UsageError("X207_READ_API_URL is required (see .env.example)");
   const circle = io.env.X207_CIRCLE_ID || "agents-main";
   const contract = io.env.X207_CONTRACT_ID || circle;
   const book = { readApiUrl, circle, contractId: contract, ...(io.fetch ? { fetch: io.fetch } : {}) };
@@ -85,7 +85,7 @@ export async function runBarterCli(argv: string[], io: BarterCliIo): Promise<num
       io.commit ??
       (async (args: unknown) => {
         const submit = readSubmitConfig(io.env);
-        if (submit === null) throw new UsageError("commit butuh NEAR_RPC_URL, X207_CONTRACT_ID, SOLVER_ACCOUNT_ID dan SOLVER_PRIVATE_KEY");
+        if (submit === null) throw new UsageError("commit needs NEAR_RPC_URL, X207_CONTRACT_ID, SOLVER_ACCOUNT_ID and SOLVER_PRIVATE_KEY");
         const chain = new NearRpcChain({
           rpcUrl: submit.rpcUrl, contractId: submit.contractId, signerId: submit.signerId, key: parseSecretKey(submit.secretKey), gasTgas: submit.gasExplicit ? submit.gasTgas : BUNDLE_GAS_TGAS,
           ...(submit.gasKeyNonceIndex === undefined ? {} : { gasKeyNonceIndex: submit.gasKeyNonceIndex }),
@@ -100,13 +100,13 @@ export async function runBarterCli(argv: string[], io: BarterCliIo): Promise<num
       results.push({ termsHash: proposal.termsHash, ok: outcome.ok, ...(outcome.ok ? { txHash: outcome.txHash } : { error: outcome.error }) });
     }
     io.out(JSON.stringify({ epoch, committed: results }));
-    io.err(`x207-barter: ${ready.length} usulan lengkap, ${ready.length - failed} commit_bundle diterima`);
+    io.err(`x207-barter: ${ready.length} complete proposals, ${ready.length - failed} commit_bundle accepted`);
     return failed === 0 ? 0 : 1;
   }
 
   const agentsFile = values.agents;
   const seeker = values.seeker;
-  if (!agentsFile || !seeker) throw new UsageError(`--agents dan --seeker wajib diisi\n${USAGE}`);
+  if (!agentsFile || !seeker) throw new UsageError(`--agents and --seeker are required\n${USAGE}`);
   const agents = JSON.parse(readFileSync(agentsFile, "utf8")) as SeekerAgent[];
   const ledgerFile = values.ledger;
   const ledger = new OfferLedger(ledgerFile && existsSync(ledgerFile) ? JSON.parse(readFileSync(ledgerFile, "utf8")) : undefined);
@@ -118,7 +118,7 @@ export async function runBarterCli(argv: string[], io: BarterCliIo): Promise<num
   let outcomes: Awaited<ReturnType<typeof sendReferrals>> | undefined;
   if (values.send === true) {
     const key = io.env.SEEKER_PRIVATE_KEY;
-    if (!key || !key.startsWith("ed25519:")) throw new UsageError("--send butuh SEEKER_PRIVATE_KEY (ed25519:<base58>, kunci voucher akun pencari)");
+    if (!key || !key.startsWith("ed25519:")) throw new UsageError("--send needs SEEKER_PRIVATE_KEY (ed25519:<base58>, voucher key of the seeker account)");
     const minStake = BigInt(int("min-stake", values["min-stake"] ?? io.env.X207_SEEKER_MIN_STAKE, 1));
     const admission = await checkSeekerAdmission(book, seeker, minStake);
     if (!admission.ok) {

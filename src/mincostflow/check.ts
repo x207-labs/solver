@@ -13,7 +13,7 @@ export function checkProposal(
   maxEdges: number,
 ): ProposalCheck {
   const fail = (reason: string): ProposalCheck => ({ ok: false, reason });
-  if (proposal.edges.length === 0) return fail("ERR_EMPTY_PROPOSAL: proposal kosong");
+  if (proposal.edges.length === 0) return fail("ERR_EMPTY_PROPOSAL: empty proposal");
   if (proposal.edges.length > maxEdges) {
     return fail(`ERR_TOO_MANY_EDGES: ${proposal.edges.length} > ${maxEdges}`);
   }

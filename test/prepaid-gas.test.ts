@@ -33,7 +33,7 @@ describe("SV-020 prepaid gas and the balance of the signer", () => {
     const seen: string[] = [];
     const chain = chainWith((24n * NEAR) / 100n, 250, seen);
     await expect(chain.submit(42, REFERENCE_TX.args.edges)).rejects.toThrow(RpcError);
-    await expect(chain.submit(42, REFERENCE_TX.args.edges)).rejects.toThrow(/kurang dari 0\.25\d* NEAR yang dicadangkan untuk 250 Tgas/);
+    await expect(chain.submit(42, REFERENCE_TX.args.edges)).rejects.toThrow(/is less than the 0\.25\d* NEAR reserved for 250 Tgas/);
     expect(seen).not.toContain("send_tx");
   });
 

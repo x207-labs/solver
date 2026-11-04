@@ -21,7 +21,7 @@ async function pages<T>(options: LoadBookOptions, path: string): Promise<T[]> {
   for (let page = 0; page < (options.maxPages ?? 20); page += 1) {
     const url = `${base}/x207/circles/${encodeURIComponent(options.circle)}${path}${path.includes("?") ? "&" : "?"}limit=100${cursor ? `&cursor=${cursor}` : ""}`;
     const response = await (options.fetch ?? fetch)(url, { signal: AbortSignal.timeout(options.timeoutMs ?? 10_000) });
-    if (!response.ok) throw new Error(`read API ${response.status} untuk ${url}`);
+    if (!response.ok) throw new Error(`read API ${response.status} for ${url}`);
     const body = (await response.json()) as { items?: T[]; nextCursor?: string | null };
     out.push(...(body.items ?? []));
     cursor = body.nextCursor ?? null;

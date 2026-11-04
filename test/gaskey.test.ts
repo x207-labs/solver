@@ -76,7 +76,7 @@ describe("SV-009 gas key (NEP-611)", () => {
       return new Response(JSON.stringify({ jsonrpc: "2.0", id: "x", result }), { status: 200 });
     }) as unknown as typeof fetch;
     const chain = new NearRpcChain({ rpcUrl: "http://rpc.test", contractId: tx.receiverId, signerId: tx.signerId, key, gasTgas: 300, gasKeyNonceIndex: 5, fetch: fetchFn });
-    await expect(chain.submit(42, REFERENCE_TX.args.edges)).rejects.toThrow(/jalur nonce 5/);
+    await expect(chain.submit(42, REFERENCE_TX.args.edges)).rejects.toThrow(/nonce lane 5/);
     expect(seen).not.toContain("send_tx");
   });
 });

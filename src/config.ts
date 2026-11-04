@@ -36,21 +36,21 @@ export function parseCliArgs(argv: string[]): CliArgs {
   } catch (error) {
     throw new UsageError(`${(error as Error).message}\n${USAGE}`);
   }
-  if (values.epoch === undefined) throw new UsageError(`--epoch wajib diisi\n${USAGE}`);
+  if (values.epoch === undefined) throw new UsageError(`--epoch is required\n${USAGE}`);
   const epoch = Number(values.epoch);
   if (!/^\d+$/.test(values.epoch) || !Number.isSafeInteger(epoch)) {
-    throw new UsageError(`--epoch harus bilangan bulat >= 0, diterima "${values.epoch}"\n${USAGE}`);
+    throw new UsageError(`--epoch must be an integer >= 0, got "${values.epoch}"\n${USAGE}`);
   }
   return { epoch, noSubmit: values["no-submit"] === true };
 }
 
 export function readConfig(env: NodeJS.ProcessEnv): Config {
   const readApiUrl = env.X207_READ_API_URL;
-  if (!readApiUrl) throw new UsageError("X207_READ_API_URL wajib diisi (lihat .env.example)");
+  if (!readApiUrl) throw new UsageError("X207_READ_API_URL is required (see .env.example)");
   const rawMaxEdges = env.MAX_EDGES_PER_TX || String(DEFAULT_MAX_EDGES_PER_TX);
   const maxEdges = Number(rawMaxEdges);
   if (!/^[1-9]\d*$/.test(rawMaxEdges) || !Number.isSafeInteger(maxEdges)) {
-    throw new UsageError(`MAX_EDGES_PER_TX harus bilangan bulat > 0, diterima "${rawMaxEdges}"`);
+    throw new UsageError(`MAX_EDGES_PER_TX must be an integer > 0, got "${rawMaxEdges}"`);
   }
   return { readApiUrl, circle: env.X207_CIRCLE_ID || "agents-main", maxEdges };
 }
@@ -68,19 +68,19 @@ export function readSubmitConfig(env: NodeJS.ProcessEnv): SubmitConfig | null {
   const present = SUBMIT_VARS.filter((name) => env[name]);
   if (present.length === 0) return null;
   const missing = SUBMIT_VARS.filter((name) => !env[name]);
-  if (missing.length > 0) throw new UsageError(`konfigurasi submit tidak lengkap, kurang: ${missing.join(", ")}`);
+  if (missing.length > 0) throw new UsageError(`incomplete submit configuration, missing: ${missing.join(", ")}`);
   // SV-020: 60 Tgas is enough for `submit_clearing` (28 Tgas for 210 edge, about 33 for 300 in the tests) and reserves 0.061 NEAR instead of 0.301
   const rawGas = env.SUBMIT_GAS_TGAS || "60";
   const gasTgas = Number(rawGas);
   if (!/^[1-9]\d*$/.test(rawGas) || gasTgas > 300) {
-    throw new UsageError(`SUBMIT_GAS_TGAS harus bilangan bulat 1..300, diterima "${rawGas}"`);
+    throw new UsageError(`SUBMIT_GAS_TGAS must be an integer 1..300, got "${rawGas}"`);
   }
   const rawLane = env.SOLVER_GAS_KEY_NONCE_INDEX;
   let gasKeyNonceIndex: number | undefined;
   if (rawLane !== undefined && rawLane !== "") {
     gasKeyNonceIndex = Number(rawLane);
     if (!/^\d+$/.test(rawLane) || gasKeyNonceIndex > 1023) {
-      throw new UsageError(`SOLVER_GAS_KEY_NONCE_INDEX harus bilangan bulat 0..1023, diterima "${rawLane}"`);
+      throw new UsageError(`SOLVER_GAS_KEY_NONCE_INDEX must be an integer 0..1023, got "${rawLane}"`);
     }
   }
   return {

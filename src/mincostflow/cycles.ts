@@ -40,7 +40,7 @@ export function decomposeCycles(input: ClearingEdge[]): Cycle[] {
       let node = start;
       for (;;) {
         const step = largest(node);
-        if (step === undefined) throw new Error(`clearing tidak seimbang di ${node}`);
+        if (step === undefined) throw new Error(`clearing unbalanced at ${node}`);
         node = step.creditor;
         const seenAt = position.get(node);
         if (seenAt !== undefined) {

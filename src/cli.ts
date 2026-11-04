@@ -10,9 +10,9 @@ import { NearRpcChain, parseSecretKey, submitProposal } from "./submit/index.js"
 async function reportBundleLegs(result: Parameters<typeof bundleLegReport>[0], readApiUrl: string, circle: string, epoch: number): Promise<void> {
   try {
     const bundles = await loadActiveBundles({ readApiUrl, circle, epoch, timeoutMs: 5_000 });
-    for (const b of bundleLegReport(result, bundles)) console.error(`x207-solver: bundle ${b.bundleId}: ${b.cleared} dari ${b.legs} leg dikliring penuh`);
+    for (const b of bundleLegReport(result, bundles)) console.error(`x207-solver: bundle ${b.bundleId}: ${b.cleared} of ${b.legs} legs fully cleared`);
   } catch (error) {
-    console.error(`x207-solver: bundle tidak terbaca, laporan leg dilewati: ${(error as Error).message}`);
+    console.error(`x207-solver: bundle unreadable, leg report skipped: ${(error as Error).message}`);
   }
 }
 
@@ -25,14 +25,14 @@ async function main(argv: string[]): Promise<number> {
   console.error(`x207-solver: ${circle} epoch ${epoch}`);
   const graph = await loadObligationGraph({ readApiUrl, circle, epoch });
   if (graph.edges.length === 0) {
-    console.error("x207-solver: tidak ada kewajiban, tidak ada yang dikirim");
+    console.error("x207-solver: no obligations, nothing sent");
     return 0;
   }
   console.error(`x207-solver: ${graph.edges.length} edge, total ${graph.totalObligation}`);
 
   const result = solveClearing(graph, { maxEdges });
   if (result.status === "nothing_to_clear") {
-    console.error("x207-solver: tidak ada yang dikliring, tidak ada yang dikirim");
+    console.error("x207-solver: nothing cleared, nothing sent");
     return 0;
   }
   console.error(
@@ -42,7 +42,7 @@ async function main(argv: string[]): Promise<number> {
   await reportBundleLegs(result, readApiUrl, circle, epoch);
   console.log(JSON.stringify(result.proposal));
   if (submit === null) {
-    console.error("x207-solver: tidak ada konfigurasi submit atau --no-submit, proposal hanya dicetak");
+    console.error("x207-solver: no submit configuration or --no-submit, proposal only printed");
     return 0;
   }
   const chain = new NearRpcChain({

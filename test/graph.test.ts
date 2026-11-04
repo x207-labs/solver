@@ -221,7 +221,7 @@ describe("SV-002 through the CLI", () => {
     api = await startReadApi(200, snapshot(edges));
     const result = await runCli(["--epoch", "42"], env(api.url));
     expect(result.code).toBe(0);
-    expect(result.stderr).toContain("tidak ada yang dikliring");
+    expect(result.stderr).toContain("nothing cleared");
     expect(result.stdout).toBe("");
   });
 
@@ -237,7 +237,7 @@ describe("SV-002 through the CLI", () => {
     api = await startReadApi(200, snapshot([]));
     const result = await runCli(["--epoch", "42"], env(api.url));
     expect(result.code).toBe(0);
-    expect(result.stderr).toContain("tidak ada kewajiban");
+    expect(result.stderr).toContain("no obligations");
     expect(result.stdout).toBe("");
   });
 

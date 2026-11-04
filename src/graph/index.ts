@@ -67,7 +67,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseAmount(value: unknown, label: string): bigint {
   if (typeof value !== "string" || !/^\d+$/.test(value)) {
-    throw invalid(`${label} bukan bilangan bulat string: ${JSON.stringify(value)}`);
+    throw invalid(`${label} is not an integer string: ${JSON.stringify(value)}`);
   }
   const amount = BigInt(value);
   if (amount > U128_MAX) throw invalid(`${label} melebihi u128: ${value}`);
@@ -75,16 +75,16 @@ function parseAmount(value: unknown, label: string): bigint {
 }
 
 function parseEdge(value: unknown, index: number): ObligationEdge {
-  if (!isRecord(value)) throw invalid(`edges[${index}] bukan objek`);
+  if (!isRecord(value)) throw invalid(`edges[${index}] is not an object`);
   const { debtor, creditor, amount, seq, cleared, remaining } = value;
-  if (typeof debtor !== "string" || debtor === "") throw invalid(`edges[${index}].debtor tidak sah`);
+  if (typeof debtor !== "string" || debtor === "") throw invalid(`edges[${index}].debtor is invalid`);
   if (typeof creditor !== "string" || creditor === "") {
-    throw invalid(`edges[${index}].creditor tidak sah`);
+    throw invalid(`edges[${index}].creditor is invalid`);
   }
-  if (!Number.isSafeInteger(seq)) throw invalid(`edges[${index}].seq tidak sah`);
+  if (!Number.isSafeInteger(seq)) throw invalid(`edges[${index}].seq is invalid`);
   for (const [name, field] of [["cleared", cleared], ["remaining", remaining]] as const) {
     if (field !== null && typeof field !== "string") {
-      throw invalid(`edges[${index}].${name} harus string atau null`);
+      throw invalid(`edges[${index}].${name} must be a string or null`);
     }
   }
   return { debtor, creditor, amount: parseAmount(amount, `edges[${index}].amount`) };
@@ -92,18 +92,18 @@ function parseEdge(value: unknown, index: number): ObligationEdge {
 
 /** Validates a spec section 3.3 response body and checks it against its own header. */
 export function parseSnapshot(body: unknown, circle: string, epoch: number): ObligationGraph {
-  if (!isRecord(body)) throw invalid("respons bukan objek");
+  if (!isRecord(body)) throw invalid("respons is not an object");
   if (body.circle !== circle) throw invalid(`circle ${String(body.circle)}, diminta ${circle}`);
   if (body.epoch !== epoch) throw invalid(`epoch ${String(body.epoch)}, diminta ${epoch}`);
   if (body.stage !== "cutoff") throw invalid(`stage ${String(body.stage)}, diminta cutoff`);
   if (typeof body.phase !== "string" || !PHASES.has(body.phase)) {
-    throw invalid(`phase tidak dikenal: ${String(body.phase)}`);
+    throw invalid(`phase unknown: ${String(body.phase)}`);
   }
   if (body.unit !== "credit" || body.decimals !== 6) {
     throw invalid(`satuan ${String(body.unit)}/${String(body.decimals)}, diminta credit/6`);
   }
-  if (!Array.isArray(body.edges)) throw invalid("edges bukan array");
-  if (!Number.isSafeInteger(body.edgeCount)) throw invalid("edgeCount tidak sah");
+  if (!Array.isArray(body.edges)) throw invalid("edges is not an array");
+  if (!Number.isSafeInteger(body.edgeCount)) throw invalid("edgeCount is invalid");
   const declaredTotal = parseAmount(body.totalObligation, "totalObligation");
 
   const parsed = body.edges.map(parseEdge);
@@ -161,6 +161,6 @@ export async function loadObligationGraph(options: LoadOptions): Promise<Obligat
     const message = typeof detail?.message === "string" ? detail.message : `HTTP ${response.status}`;
     throw new SnapshotError(code, message);
   }
-  if (body === undefined) throw invalid("respons bukan JSON");
+  if (body === undefined) throw invalid("respons is not JSON");
   return parseSnapshot(body, circle, epoch);
 }

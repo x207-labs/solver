@@ -58,7 +58,7 @@ export function isChosen(seed: string, job: Pick<JobRecord, "provider" | "jobId"
 
 /** The jobs that would be checked, in the order given. */
 export function chooseJobs(jobs: readonly JobRecord[], config: Pick<VerifierConfig, "rate" | "seed" | "maxPerRun" | "alreadyChecked" | "verifier">): JobRecord[] {
-  if (!(config.rate >= 0 && config.rate <= 1)) throw new Error("rate harus antara 0 dan 1");
+  if (!(config.rate >= 0 && config.rate <= 1)) throw new Error("rate must be between 0 and 1");
   const chosen = jobs.filter(
     (j) => j.deterministic && j.provider !== config.verifier && !config.alreadyChecked?.has(jobHashOf(j.provider, j.jobId)) && isChosen(config.seed, j, config.rate),
   );

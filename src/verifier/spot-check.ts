@@ -18,9 +18,9 @@ const HASH = /^[0-9a-f]{64}$/;
 const sha = (text: string): Uint8Array => createHash("sha256").update(text, "utf8").digest();
 
 export function serializeSpotCheck(n: SpotCheckNotice): string {
-  if (!HASH.test(n.job_hash)) throw new Error("job_hash harus 64 heksadesimal huruf kecil");
-  if ((n.expected_hash === null) !== (n.got_hash === null)) throw new Error("expected_hash dan got_hash datang bersama atau tidak sama sekali");
-  for (const h of [n.expected_hash, n.got_hash]) if (h !== null && !HASH.test(h)) throw new Error("expected_hash dan got_hash harus 64 heksadesimal huruf kecil");
+  if (!HASH.test(n.job_hash)) throw new Error("job_hash must be 64 lowercase hex characters");
+  if ((n.expected_hash === null) !== (n.got_hash === null)) throw new Error("expected_hash and got_hash are both set or both null");
+  for (const h of [n.expected_hash, n.got_hash]) if (h !== null && !HASH.test(h)) throw new Error("expected_hash and got_hash must be 64 lowercase hex characters");
   if (n.passed && n.expected_hash !== null && n.expected_hash !== n.got_hash) throw new Error("passed true berarti hash sama");
   if (!n.passed && n.expected_hash !== null && n.expected_hash === n.got_hash) throw new Error("passed false berarti hash berbeda");
   return JSON.stringify({ circle: n.circle, subject: n.subject, verifier: n.verifier, job_hash: n.job_hash, passed: n.passed, expected_hash: n.expected_hash, got_hash: n.got_hash, at: n.at });

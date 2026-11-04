@@ -41,7 +41,7 @@ describe("SV-011 proposals to the book and commit_bundle", () => {
   it("commitBundleArgs needs a complete proposal and renames the signature field", () => {
     const ready: ProposalView = { termsHash: "h", status: "ready", epoch: 4, terms, participants: ["a.near", "b.near"], signatures: [{ account: "a.near", signature: "ed25519:s1" }, { account: "b.near", signature: "ed25519:s2" }], missing: [] };
     expect(commitBundleArgs(ready)).toEqual({ bundle: { epoch: 4, legs: terms.legs }, signatures: [{ account_id: "a.near", signature: "ed25519:s1" }, { account_id: "b.near", signature: "ed25519:s2" }] });
-    expect(() => commitBundleArgs({ ...ready, status: "proposed", missing: ["b.near"] })).toThrow(/belum lengkap/);
+    expect(() => commitBundleArgs({ ...ready, status: "proposed", missing: ["b.near"] })).toThrow(/missing signatures/);
   });
 
   it("commit sends commit_bundle for every ready proposal of the epoch and reports a refusal", async () => {

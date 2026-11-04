@@ -12,7 +12,7 @@ export async function checkSeekerAdmission(options: LoadBookOptions, seeker: str
   const url = `${base}/x207/circles/${encodeURIComponent(options.circle)}/members/${encodeURIComponent(seeker)}`;
   const response = await (options.fetch ?? fetch)(url, { signal: AbortSignal.timeout(options.timeoutMs ?? 10_000) });
   if (response.status === 404) return { ok: false, reason: "not_a_member", detail: `${seeker} is not a member of ${options.circle}` };
-  if (!response.ok) throw new Error(`read API ${response.status} untuk ${url}`);
+  if (!response.ok) throw new Error(`read API ${response.status} for ${url}`);
   const member = (await response.json()) as { status?: string; stake?: string };
   const stake = BigInt(member.stake ?? "0");
   if (member.status !== "active") return { ok: false, reason: "not_active", stake, detail: `${seeker} is ${member.status ?? "unknown"}, not active` };

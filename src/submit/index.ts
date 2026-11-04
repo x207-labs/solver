@@ -65,21 +65,21 @@ const RACE_ERRORS = ["ERR_PROPOSAL_NOT_BETTER", "ERR_PROPOSAL_WINDOW_CLOSED"];
 export async function submitProposal(chain: ClearingChain, proposal: Proposal, log: Log): Promise<SubmitResult> {
   const { epoch, edges } = proposal;
   if (edges.length === 0) {
-    log("x207-solver: proposal kosong, tidak dikirim");
+    log("x207-solver: empty proposal, not sent");
     return { status: "no_proposal", exitCode: 0 };
   }
   try {
     const info = await chain.getEpoch(epoch);
     if (info === null) {
-      log(`x207-solver: epoch ${epoch} tidak ada di kontrak`);
+      log(`x207-solver: epoch ${epoch} not found on the contract`);
       return { status: "wrong_phase", exitCode: 1 };
     }
     if (info.phase === "commit") {
-      log(`x207-solver: jendela proposal tertutup (fase commit), epoch ${epoch} tidak dikirim`);
+      log(`x207-solver: proposal window closed (fase commit), epoch ${epoch} not sent`);
       return { status: "window_closed", exitCode: 0 };
     }
     if (info.phase !== "clearing") {
-      log(`x207-solver: epoch ${epoch} berfase ${info.phase}, bukan clearing; tidak dikirim`);
+      log(`x207-solver: epoch ${epoch} is in phase ${info.phase}, not clearing; not sent`);
       return { status: "wrong_phase", exitCode: 1 };
     }
 
@@ -94,15 +94,15 @@ export async function submitProposal(chain: ClearingChain, proposal: Proposal, l
       return { status: "invalid", exitCode: 1 };
     }
     if (!simulation.better_than_current) {
-      const holder = stored === null ? "tidak ada" : `${stored.solver} ${stored.cleared_total} (${stored.edge_count} edge)`;
-      log(`x207-solver: proposal tersimpan tidak kalah (${holder}); tidak dikirim`);
+      const holder = stored === null ? "none" : `${stored.solver} ${stored.cleared_total} (${stored.edge_count} edge)`;
+      log(`x207-solver: stored proposal is not beaten (${holder}); not sent`);
       return { status: "not_better", exitCode: 0 };
     }
 
     const outcome = await chain.submit(epoch, edges);
     if (outcome.ok) {
-      const replaced = stored === null ? "tidak ada" : `${stored.solver} ${stored.cleared_total}`;
-      log(`x207-solver: submit_clearing diterima, tx ${outcome.txHash}; menggantikan proposal: ${replaced}`);
+      const replaced = stored === null ? "none" : `${stored.solver} ${stored.cleared_total}`;
+      log(`x207-solver: submit_clearing accepted, tx ${outcome.txHash}; menggantikan proposal: ${replaced}`);
       return { status: "submitted", exitCode: 0, txHash: outcome.txHash };
     }
     log(`x207-solver: submit_clearing gagal${outcome.txHash ? ` (tx ${outcome.txHash})` : ""}: ${outcome.error}`);
@@ -113,7 +113,7 @@ export async function submitProposal(chain: ClearingChain, proposal: Proposal, l
       txHash: outcome.txHash,
     };
   } catch (error) {
-    log(`x207-solver: kontrak tidak terjangkau, tidak dikirim: ${(error as Error).message}`);
+    log(`x207-solver: contract unreachable, not sent: ${(error as Error).message}`);
     return { status: "chain_error", exitCode: 1 };
   }
 }
