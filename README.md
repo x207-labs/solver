@@ -27,7 +27,7 @@ Read-only, no key and no NEAR account. `--no-submit` prints the proposal and sen
 
 ```bash
 npm ci && npm run build
-X207_READ_API_URL=https://x207-backend-production.up.railway.app node dist/cli.js --epoch 8 --no-submit
+X207_READ_API_URL=https://x207.boxd.sh node dist/cli.js --epoch 8 --no-submit
 ```
 
 On 2026-11-04 the log ends with 24 edges, total `41350000`, and a proposal of 18 edges with `cleared_total 21800000`: 21.8 of the 41.35 credit of epoch 8, the same figure the contract committed on testnet. The proposal is deterministic (ties are broken by a seed from `sha256("<circleId>:<epoch>")`), so two runs on one snapshot print identical bytes. Logs go to stderr and the JSON proposal to stdout.
