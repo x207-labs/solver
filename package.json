@@ -20,7 +20,7 @@
   },
   "private": true,
   "dependencies": {
-    "@x207/core": "0.0.1"
+    "@x207/core": "0.0.2"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
