@@ -1,6 +1,7 @@
 import type { ObligationEdge, ObligationGraph } from "../graph/index.js";
 import { checkProposal, ProposalCheckError } from "./check.js";
 import { decomposeCycles, selectCycles } from "./cycles.js";
+import { minimizeClearedEdges } from "./edges.js";
 import { minCostFlow, netPositions } from "./flow.js";
 
 /** Default of MAX_EDGES_PER_TX (spec 3.6, K-44). */
@@ -41,7 +42,8 @@ export interface SolveOptions {
 
 export function solveClearing(graph: ObligationGraph, options: SolveOptions = {}): ClearingResult {
   const maxEdges = options.maxEdges ?? DEFAULT_MAX_EDGES_PER_TX;
-  const flows = minCostFlow(graph);
+  // A-SV-01: the contract breaks a tie of cleared_total in favour of fewer edges (spec 4.3), so the optimum is also pushed to the fewest cleared edges we can find
+  const flows = minimizeClearedEdges(graph, minCostFlow(graph));
   const allocations = graph.edges.map((edge, i) => ({
     ...edge,
     flow: flows[i]!,
