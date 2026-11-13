@@ -14,6 +14,8 @@ import { CREDIT, FX_E42_EDGES } from "./fixtures.js";
 
 const LARGE: RandomGraphOptions = { maxMembers: 64, maxEdges: 300, maxAmount: 1e12 };
 const SMALL: RandomGraphOptions = { maxMembers: 6, maxEdges: 10, maxAmount: 5 };
+/** The property tests solve 500-1000 seeded graphs each (the whole solver suite takes about 2.5 min on a quiet machine). 300 s timed out when the machine was busy (BE-122), so the limit is three times larger; no assertion changed. */
+const PROPERTY_TIMEOUT = 900_000;
 
 function graphAt(seed: number, options: RandomGraphOptions): ObligationGraph {
   return buildGraph("agents-main", seed, randomEdges(seededRandom(seed), options));
@@ -76,7 +78,7 @@ describe("SV-005 properties over large random graphs", () => {
       const second = solveClearing(graph, { maxEdges: Number.MAX_SAFE_INTEGER });
       expect(JSON.stringify(second.proposal)).toBe(JSON.stringify(proposal));
     });
-  }, 300_000);
+  }, PROPERTY_TIMEOUT);
 
   it("TC-SV-005-10 respects the edge limit and stays balanced", () => {
     forEachGraph(1000, LARGE, (graph) => {
@@ -87,7 +89,7 @@ describe("SV-005 properties over large random graphs", () => {
         expect(checkProposal(graph, proposal, 30)).toEqual({ ok: true });
       }
     });
-  }, 300_000);
+  }, PROPERTY_TIMEOUT);
 });
 
 describe("SV-005 optimality", () => {
@@ -95,7 +97,7 @@ describe("SV-005 optimality", () => {
     forEachGraph(500, SMALL, (graph) => {
       expect(solveClearing(graph).clearedTotal).toBe(bruteForceBest(graph).total);
     });
-  }, 300_000);
+  }, PROPERTY_TIMEOUT);
 
   it("TC-SV-005-06 is at least greedy per-cycle", () => {
     forEachGraph(500, SMALL, (graph) => {
@@ -110,7 +112,7 @@ describe("SV-005 optimality", () => {
     );
     expect(solveClearing(fxGreedy).clearedTotal).toBe(30n * CREDIT);
     expect(greedyPerCycle(fxGreedy)).toBe(25n * CREDIT);
-  }, 300_000);
+  }, PROPERTY_TIMEOUT);
 
   it("TC-SV-005-07 clears the A-B-C-A triangle", () => {
     const triangle = buildGraph("agents-main", 42, [
@@ -137,5 +139,5 @@ describe("SV-005 optimality", () => {
       expect(result.clearedTotal).toBe(0n);
       expect(result.proposal.edges).toEqual([]);
     });
-  }, 300_000);
+  }, PROPERTY_TIMEOUT);
 });
