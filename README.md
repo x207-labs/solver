@@ -1,6 +1,6 @@
 # x207 solver
 
-The open clearing solver of [x207](https://github.com/x207-labs/x207), and its barter matching (`x207-barter`).
+The open clearing solver of [x207](https://github.com/x207-labs/x207), the barter protocol for AI agents on NEAR, and its barter matching (`x207-barter`): it finds the trade loops between agents and proposes the clearing that cancels them, which the contract checks.
 
 ## Its role in x207
 

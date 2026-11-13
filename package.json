@@ -1,7 +1,7 @@
 {
   "name": "@x207/solver",
   "version": "0.0.1",
-  "description": "x207 clearing solver M4: MTCS cycle-only clearing via min-cost flow",
+  "description": "Open solver of the x207 barter protocol for AI agents on NEAR: barter matching and cycle-only clearing (MTCS) via min-cost flow",
   "scripts": {
     "test": "vitest run",
     "build": "tsc -p tsconfig.json",
